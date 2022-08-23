@@ -80,15 +80,22 @@ impl GameState {
         }
     }
 
+    pub fn get_square_state(&self, f: File, r: Rank) -> Option<(Color,Piece)> {
+        self.board[r as usize][f as usize]
+    }
+
     pub fn get_legal_moves(&self) -> Vec<Move> {
 
-        let create_row = |r:usize| (0..7).map(move |f:usize| match self.board[r][f] {
-            Some(piece) => Some(((r,f), piece)),
-            _ => None
+        let create_file = |f:File| (0..7)
+            .map(|f| num::FromPrimitive::from_u32(f).unwrap())
+            .map(move |r:Rank| match self.get_square_state(f, r) {
+                Some(piece) => Some(((f,r), piece)),
+                _ => None
         });
 
         (0..7)
-        .flat_map(create_row)
+        .map(|f| num::FromPrimitive::from_u32(f).unwrap())
+        .flat_map(create_file)
         .filter_map(|tuple| {
 
             match tuple {
@@ -97,12 +104,11 @@ impl GameState {
             }
         })
         .flat_map(|tuple| {
-            let ((rank, file), (color, piece)) = tuple;
-
+            let ((file, rank), (color, piece)) = tuple;
 
             self.get_legal_moves_for_piece_on_square(
-                num::FromPrimitive::from_usize(file).unwrap(),
-                num::FromPrimitive::from_usize(rank).unwrap(),
+                file,
+                rank,
                 color,
                 piece
             )
@@ -149,7 +155,7 @@ impl GameState {
         .filter(|&m| { 
             let (file, rank) = m.new_position;
 
-            self.board[rank as usize][file as usize].is_none() 
+            self.get_square_state(file, rank).is_none() 
         })
         .collect()
     
