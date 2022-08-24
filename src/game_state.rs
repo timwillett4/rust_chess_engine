@@ -47,11 +47,18 @@ pub enum File {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Pos {
+    file: File,
+    rank: Rank
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Move {
-    old_position : (File, Rank),
-    new_position : (File, Rank) // @TODO - may need to have new piece here to cover pawn promotion
-    // capture : bool ?
-    // check : bool ?
+    old_position : Pos,
+    new_position : Pos,
+    capture : bool,
+    check : bool,
+    promotion: Option<Piece>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -88,8 +95,7 @@ impl GameState {
             let ((file, rank), (color, piece)) = tuple;
 
             self.get_legal_moves_for_piece_on_square(
-                file,
-                rank,
+                Pos{file,rank},
                 color,
                 piece
             )
@@ -101,46 +107,44 @@ impl GameState {
         self.board[r as usize][f as usize]
     }
 
-    fn get_legal_moves_for_piece_on_square(&self, f: File, r: Rank, c: Color, p: Piece) -> Vec<Move> {
+    fn get_legal_moves_for_piece_on_square(&self, pos:Pos, c: Color, p: Piece) -> Vec<Move> {
         assert!(c == self.to_move, "Only pieces of color to move should be able to move");
 
         match p {
-            Piece::Pawn => self.get_legal_pawn_moves(f, r),
+            Piece::Pawn => self.get_legal_pawn_moves(pos),
             _ => Vec::new()
         }
     }
     
-    fn get_legal_pawn_moves(&self, f: File, r: Rank) -> Vec<Move> {
+    fn get_legal_pawn_moves(&self, pos: Pos) -> Vec<Move> {
 
-        assert!(r != Rank::_1 && r != Rank::_8, "Pawn can not be on first or last rank");
+        assert!(pos.rank != Rank::_1 && pos.rank != Rank::_8, "Pawn can not be on first or last rank");
         
-        (match (self.to_move,r) {
+        (match (self.to_move, pos.rank) {
             (Color::White, Rank::_2) => {
-                vec![Move{old_position: (f,r), new_position: (f, Rank::_3)},
-                     Move{old_position: (f,r), new_position: (f, Rank::_4)}]
+                vec![Move{old_position: pos, new_position: Pos{file: pos.file, rank: Rank::_3}, capture: false, check: false, promotion: None},
+                     Move{old_position: pos, new_position: Pos{file: pos.file, rank: Rank::_4}, capture: false, check: false, promotion: None}]
             },
             (Color::White, rank) => {
                 let new_rank = rank as i32 - 1;
                 let new_rank = num::FromPrimitive::from_i32(new_rank).unwrap();
 
-                vec![Move{old_position: (f,r), new_position: (f, new_rank)}]
+                vec![Move{old_position: pos, new_position: Pos{file: pos.file, rank: new_rank}, capture: false, check: false, promotion: None}]
             },
             (Color::Black, Rank::_7) => {
-                vec![Move{old_position: (f,r), new_position: (f, Rank::_6)},
-                     Move{old_position: (f,r), new_position: (f, Rank::_5)}]
+                vec![Move{old_position: pos, new_position: Pos{file: pos.file, rank: Rank::_6}, capture: false, check: false, promotion: None},
+                     Move{old_position: pos, new_position: Pos{file: pos.file, rank: Rank::_5}, capture: false, check: false, promotion: None}]
             },
             (Color::Black, rank) => {
                 let new_rank = rank as i32 + 1;
                 let new_rank = num::FromPrimitive::from_i32(new_rank).unwrap();
 
-                vec![Move{old_position: (f,r), new_position: (f, new_rank)}]
+                vec![Move{old_position: pos, new_position: Pos{file:pos.file, rank: new_rank}, capture: false, check: false, promotion: None}]
             },
         })
         .into_iter()
         .filter(|&m| { 
-            //assert_eq!(m.old_position.file, new_file, "Pawn should only be able to move vertically in non-capture situation");
-
-            println!("Checking if piece between {:?} and {:?}", m.old_position, m.new_position);
+            assert_eq!(m.old_position.file, m.new_position.file, "Pawn should only be able to move vertically in non-capture situation");
 
             self.get_first_occupied_square(m.old_position, m.new_position).is_none()
         })
@@ -150,36 +154,36 @@ impl GameState {
         // @TODO - this won't work with captures, perhaps can concat with captures???
     }
 
-    fn get_first_occupied_square(&self, start: (File,Rank), finish: (File,Rank)) -> Option<(File,Rank)> {
+    fn get_first_occupied_square(&self, start: Pos, finish: Pos) -> Option<Pos> {
 
         let get_first_occupied = |files:&mut dyn DoubleEndedIterator<Item=u8>, ranks:&mut dyn DoubleEndedIterator<Item=u8>| 
             files.zip(ranks)
-            .skip(1)
+            .skip(1) // first square is current position
             .find_map(|pos| {
                 let (file, rank) = pos;
 
                 let file = num::FromPrimitive::from_u8(file).unwrap();
                 let rank = num::FromPrimitive::from_u8(rank).unwrap();
 
+                let pos = Pos{file, rank};
+
                 match self.get_square_state(file, rank) {
-                    Some(_) => Some((file, rank)),
+                    Some(_) => Some(pos),
                     None => None
                 }
             });
 
-        let (start_file, start_rank) = start;
-        let (finish_file, finish_rank) = finish;
-        
        // @TODO - assert that range is straight line or diagnal
-        let files:&mut dyn DoubleEndedIterator<Item=u8> = &mut (start_file as u8..=finish_file as u8);
-        let files_rev:&mut dyn DoubleEndedIterator<Item=u8> = &mut (finish_file as u8..=start_file as u8).rev();
-        let files_repeat:&mut dyn DoubleEndedIterator<Item=u8> = &mut repeat(start_file as u8);
 
-        let ranks:&mut dyn DoubleEndedIterator<Item=u8> = &mut (start_rank as u8..=finish_rank as u8);
-        let ranks_rev:&mut dyn DoubleEndedIterator<Item=u8> = &mut (finish_rank as u8..=start_rank as u8).rev();
-        let ranks_repeat:&mut dyn DoubleEndedIterator<Item=u8> = &mut repeat(start_rank as u8);
+        let files:&mut dyn DoubleEndedIterator<Item=u8> = &mut (start.file as u8..=finish.file as u8);
+        let files_rev:&mut dyn DoubleEndedIterator<Item=u8> = &mut (finish.file as u8..=start.file as u8).rev();
+        let files_repeat:&mut dyn DoubleEndedIterator<Item=u8> = &mut repeat(start.file as u8);
 
-        match (finish_file.cmp(&start_file), finish_rank.cmp(&start_rank)) {
+        let ranks:&mut dyn DoubleEndedIterator<Item=u8> = &mut (start.rank as u8..=finish.rank as u8);
+        let ranks_rev:&mut dyn DoubleEndedIterator<Item=u8> = &mut (finish.rank as u8..=start.rank as u8).rev();
+        let ranks_repeat:&mut dyn DoubleEndedIterator<Item=u8> = &mut repeat(start.rank as u8);
+
+        match (finish.file.cmp(&start.file), finish.rank.cmp(&start.rank)) {
             (Ordering::Greater, Ordering::Greater) => get_first_occupied(files, ranks),
             (Ordering::Greater, Ordering::Less) => get_first_occupied(files, ranks_rev),
             (Ordering::Greater, Ordering::Equal) => get_first_occupied(files, ranks_repeat),
@@ -192,12 +196,6 @@ impl GameState {
             (Ordering::Less, Ordering::Less) => get_first_occupied(files_rev, ranks_rev),
             (Ordering::Less, Ordering::Equal) => get_first_occupied(files_rev, ranks_repeat),
         }
-        /*match (finish_file > start_file, finish_rank > start_rank) { 
-            (true, true) => { println!("Branch 1"); get_first_occupied(files, ranks) },
-            (false, true) => { println!("Branch 2"); get_first_occupied(files_rev, ranks) },
-            (true, false) => { println!("Branch 3"); get_first_occupied(files, ranks_rev) },
-            (false, false) => { println!("Branch 4"); get_first_occupied(files_rev, ranks_rev) },
-        } */
     }
 /*
     pub fn is_checkmate(game_state: GameState) -> bool {
@@ -271,8 +269,8 @@ mod tests {
                     [None,None,None,None,None,None,None,None],
                 ],
                 to_move : Color::White
-            }, vec![Move{old_position: (File::A, Rank::_2), new_position:(File::A, Rank::_3) },
-                    Move{old_position: (File::A, Rank::_2), new_position:(File::A, Rank::_4) }]),
+            }, vec![Move{old_position: (File::A, Rank::_2), new_position:(File::A, Rank::_3), capture: false, check: false, promotion: None },
+                    Move{old_position: (File::A, Rank::_2), new_position:(File::A, Rank::_4), capture: false, check: false, promotion: None }]),
 
             black_pawn_should_be_able_to_move_one_or_two_squares_on_initial_move: (GameState {
                 board : [
@@ -286,8 +284,8 @@ mod tests {
                     [None,None,None,None,None,None,None,None],
                 ],
                 to_move : Color::Black
-            }, vec![Move{old_position: (File::A, Rank::_7), new_position:(File::A, Rank::_6) },
-                    Move{old_position: (File::A, Rank::_7), new_position:(File::A, Rank::_5) }]),
+            }, vec![Move{old_position: (File::A, Rank::_7), new_position:(File::A, Rank::_6), capture:false, check: false, promotion: None },
+                    Move{old_position: (File::A, Rank::_7), new_position:(File::A, Rank::_5), capture:false, check: false, promotion: None }]),
 
             white_pawn_should_be_able_to_move_one_squares_after_initial_move: (GameState {
                 board : [
@@ -301,7 +299,7 @@ mod tests {
                     [None,None,None,None,None,None,None,None],
                 ],
                 to_move : Color::White
-            }, vec![Move{old_position: (File::A, Rank::_3), new_position:(File::A, Rank::_4) }]),
+            }, vec![Move{old_position: (File::A, Rank::_3), new_position:(File::A, Rank::_4), capture:false, check: false, promotion: None }]),
 
             black_pawn_should_be_able_to_move_one_squares_after_initial_move: (GameState {
                 board : [
@@ -315,7 +313,7 @@ mod tests {
                     [None,None,None,None,None,None,None,None],
                 ],
                 to_move : Color::Black
-            }, vec![Move{old_position: (File::A, Rank::_6), new_position:(File::A, Rank::_5) }]),
+            }, vec![Move{old_position: (File::A, Rank::_6), new_position:(File::A, Rank::_5), capture:false, check: false, promotion: None }]),
 
             white_pawn_should_not_be_able_to_move_if_blocked_by_another_piece: (GameState {
                 board : [
@@ -379,17 +377,19 @@ mod tests {
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
-                    [None,None,None,None,None,None,None,None],
                     [None,Some((Color::Black, Piece::Pawn)),None,None,None,None,None,None],
                     [Some((Color::White, Piece::Pawn)),None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
                 ],
                 to_move : Color::White
-            }, vec![Move{old_position: (File::A, Rank::_2), new_position:(File::A, Rank::_3) },
-                    Move{old_position: (File::A, Rank::_2), new_position:(File::B, Rank::_3) }]),
+            }, vec![Move{old_position: (File::A, Rank::_3), new_position:(File::A, Rank::_4), capture:false, check: false, promotion: None },
+                    Move{old_position: (File::B, Rank::_4), new_position:(File::B, Rank::_5), capture:false, check: false, promotion: None },
+                    Move{old_position: (File::A, Rank::_3), new_position:(File::B, Rank::_4), capture:true, check: false, promotion: None }]),
 
             black_pawn_should_be_able_to_capture_on_diaganol: (GameState {
                 board : [
+                    [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                     [Some((Color::Black, Piece::Pawn)),None,None,None,None,None,None,None],
                     [None,Some((Color::White, Piece::Pawn)),None,None,None,None,None,None],
@@ -397,11 +397,11 @@ mod tests {
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
-                    [None,None,None,None,None,None,None,None],
                 ],
                 to_move : Color::Black
-            }, vec![Move{old_position: (File::A, Rank::_7), new_position:(File::A, Rank::_6) },
-                    Move{old_position: (File::A, Rank::_7), new_position:(File::B, Rank::_6) }]),
+            }, vec![Move{old_position: (File::A, Rank::_6), new_position:(File::A, Rank::_5), capture:false, check: false, promotion: None },
+                    Move{old_position: (File::B, Rank::_5), new_position:(File::B, Rank::_4), capture:false, check: false, promotion: None },
+                    Move{old_position: (File::A, Rank::_6), new_position:(File::B, Rank::_5), capture:true, check: false, promotion: None }]),
         
             white_pawn_should_not_be_able_to_capture_same_color: (GameState {
                 board : [
@@ -409,16 +409,18 @@ mod tests {
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
-                    [None,None,None,None,None,None,None,None],
                     [None,Some((Color::White, Piece::Pawn)),None,None,None,None,None,None],
                     [Some((Color::White, Piece::Pawn)),None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
                 ],
                 to_move : Color::White
-            }, vec![Move{old_position: (File::A, Rank::_2), new_position:(File::A, Rank::_3) }]),
+            }, vec![Move{old_position: (File::A, Rank::_3), new_position:(File::A, Rank::_4), capture: false, check: false, promotion: None },
+                    Move{old_position: (File::B, Rank::_4), new_position:(File::B, Rank::_5), capture: false, check: false, promotion: None }]),
 
             black_pawn_should_not_be_able_to_capture_same_color: (GameState {
                 board : [
+                    [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                     [Some((Color::Black, Piece::Pawn)),None,None,None,None,None,None,None],
                     [None,Some((Color::Black, Piece::Pawn)),None,None,None,None,None,None],
@@ -426,10 +428,10 @@ mod tests {
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
-                    [None,None,None,None,None,None,None,None],
                 ],
                 to_move : Color::Black
-            }, vec![Move{old_position: (File::A, Rank::_7), new_position:(File::A, Rank::_6) }]),
+            }, vec![Move{old_position: (File::A, Rank::_6), new_position:(File::A, Rank::_5), capture: false, check: false, promotion: None },
+                    Move{old_position: (File::B, Rank::_5), new_position:(File::B, Rank::_4), capture: false, check: false, promotion: None }]),
 
             // en-passant
             // promotion
