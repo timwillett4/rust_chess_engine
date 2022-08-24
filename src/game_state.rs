@@ -158,7 +158,6 @@ impl GameState {
             .find_map(|pos| {
                 let (file, rank) = pos;
 
-                println!("Checking square state for {:?}{:?}", file, rank);
                 let file = num::FromPrimitive::from_u8(file).unwrap();
                 let rank = num::FromPrimitive::from_u8(rank).unwrap();
 
@@ -176,61 +175,22 @@ impl GameState {
         let files_rev:&mut dyn DoubleEndedIterator<Item=u8> = &mut (finish_file as u8..=start_file as u8).rev();
         let files_repeat:&mut dyn DoubleEndedIterator<Item=u8> = &mut repeat(start_file as u8);
 
-        print!("Files: ");
-        for f in files.skip(0) {
-            let f:File = num::FromPrimitive::from_u8(f).unwrap();
-            print!("{:?}, ", f);
-        }
-        print!("\n");
-
-        print!("Files Rev: ");
-        for f in files_rev.skip(0) {
-            let f:File = num::FromPrimitive::from_u8(f).unwrap();
-            print!("{:?}, ", f);
-        }
-        print!("\n");
-
         let ranks:&mut dyn DoubleEndedIterator<Item=u8> = &mut (start_rank as u8..=finish_rank as u8);
         let ranks_rev:&mut dyn DoubleEndedIterator<Item=u8> = &mut (finish_rank as u8..=start_rank as u8).rev();
         let ranks_repeat:&mut dyn DoubleEndedIterator<Item=u8> = &mut repeat(start_rank as u8);
 
         match (finish_file.cmp(&start_file), finish_rank.cmp(&start_rank)) {
-            (Ordering::Greater, Ordering::Greater) => { 
-                println!("Branch 1"); 
-                get_first_occupied(files, ranks) 
-            },
-            (Ordering::Greater, Ordering::Less) => { 
-                println!("Branch 2"); 
-                get_first_occupied(files, ranks_rev) 
-            },
-            (Ordering::Greater, Ordering::Equal) => { 
-                println!("Branch 3"); 
-                get_first_occupied(files, ranks_repeat) 
-            },
-            (Ordering::Equal, Ordering::Greater) => { 
-                println!("Branch 4"); 
-                get_first_occupied(files_repeat, ranks) 
-            },
-            (Ordering::Equal, Ordering::Less) => { 
-                println!("Branch 5"); 
-                get_first_occupied(files_repeat, ranks_rev) 
-            },
-            (Ordering::Equal, Ordering::Equal) => { 
-                println!("Branch 6"); 
-                panic!("Illegal Case")
-            },
-            (Ordering::Less, Ordering::Greater) => { 
-                println!("Branch 7"); 
-                get_first_occupied(files_rev, ranks) 
-            },
-            (Ordering::Less, Ordering::Less) => { 
-                println!("Branch 8"); 
-                get_first_occupied(files_rev, ranks_rev) 
-            },
-            (Ordering::Less, Ordering::Equal) => { 
-                println!("Branch 9"); 
-                get_first_occupied(files_rev, ranks_repeat) 
-            },
+            (Ordering::Greater, Ordering::Greater) => get_first_occupied(files, ranks),
+            (Ordering::Greater, Ordering::Less) => get_first_occupied(files, ranks_rev),
+            (Ordering::Greater, Ordering::Equal) => get_first_occupied(files, ranks_repeat),
+
+            (Ordering::Equal, Ordering::Greater) => get_first_occupied(files_repeat, ranks),
+            (Ordering::Equal, Ordering::Less) => get_first_occupied(files_repeat, ranks_rev),
+            (Ordering::Equal, Ordering::Equal) => panic!("Can't move to same square"),
+
+            (Ordering::Less, Ordering::Greater) => get_first_occupied(files_rev, ranks),
+            (Ordering::Less, Ordering::Less) => get_first_occupied(files_rev, ranks_rev),
+            (Ordering::Less, Ordering::Equal) => get_first_occupied(files_rev, ranks_repeat),
         }
         /*match (finish_file > start_file, finish_rank > start_rank) { 
             (true, true) => { println!("Branch 1"); get_first_occupied(files, ranks) },
@@ -412,10 +372,67 @@ mod tests {
                 ],
                 to_move : Color::Black
             }, Vec::new()),
+
+            white_pawn_should_be_able_to_capture_on_diaganol: (GameState {
+                board : [
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,Some((Color::Black, Piece::Pawn)),None,None,None,None,None,None],
+                    [Some((Color::White, Piece::Pawn)),None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                ],
+                to_move : Color::White
+            }, vec![Move{old_position: (File::A, Rank::_2), new_position:(File::A, Rank::_3) },
+                    Move{old_position: (File::A, Rank::_2), new_position:(File::B, Rank::_3) }]),
+
+            black_pawn_should_be_able_to_capture_on_diaganol: (GameState {
+                board : [
+                    [None,None,None,None,None,None,None,None],
+                    [Some((Color::Black, Piece::Pawn)),None,None,None,None,None,None,None],
+                    [None,Some((Color::White, Piece::Pawn)),None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                ],
+                to_move : Color::Black
+            }, vec![Move{old_position: (File::A, Rank::_7), new_position:(File::A, Rank::_6) },
+                    Move{old_position: (File::A, Rank::_7), new_position:(File::B, Rank::_6) }]),
+        
+            white_pawn_should_not_be_able_to_capture_same_color: (GameState {
+                board : [
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,Some((Color::White, Piece::Pawn)),None,None,None,None,None,None],
+                    [Some((Color::White, Piece::Pawn)),None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                ],
+                to_move : Color::White
+            }, vec![Move{old_position: (File::A, Rank::_2), new_position:(File::A, Rank::_3) }]),
+
+            black_pawn_should_not_be_able_to_capture_same_color: (GameState {
+                board : [
+                    [None,None,None,None,None,None,None,None],
+                    [Some((Color::Black, Piece::Pawn)),None,None,None,None,None,None,None],
+                    [None,Some((Color::Black, Piece::Pawn)),None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                ],
+                to_move : Color::Black
+            }, vec![Move{old_position: (File::A, Rank::_7), new_position:(File::A, Rank::_6) }]),
+
+            // en-passant
+            // promotion
         }
-
-        // can capture if opponent piece is on diaganal
-
-        // en-passant
     }
 }
