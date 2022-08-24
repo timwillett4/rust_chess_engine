@@ -1,1 +1,1 @@
-pub mod domain_types;
+pub mod game_state;
