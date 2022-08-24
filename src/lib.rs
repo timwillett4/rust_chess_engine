@@ -1,1 +1,1 @@
-mod domain_types;
+pub mod domain_types;

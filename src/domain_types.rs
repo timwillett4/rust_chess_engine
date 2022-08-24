@@ -1,5 +1,6 @@
 extern crate num;
 extern crate num_derive;
+use std::cmp::Ordering;
 use std::iter::*;
 use num_derive::FromPrimitive;
 
@@ -21,7 +22,7 @@ pub enum Piece {
 
 // Rank are in reverse numerical number so that array initialization
 // Matches chess board setup
-#[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive)]
+#[derive(Clone, Copy, Debug, Eq, FromPrimitive, Ord, PartialEq, PartialOrd)]
 pub enum Rank {
     _8,
     _7,
@@ -33,7 +34,7 @@ pub enum Rank {
     _1
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive)]
+#[derive(Clone, Copy, Debug, Eq, FromPrimitive, Ord, PartialEq, PartialOrd)]
 pub enum File {
     A,
     B,
@@ -48,7 +49,7 @@ pub enum File {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Move {
     old_position : (File, Rank),
-    new_position : (File, Rank)
+    new_position : (File, Rank) // @TODO - may need to have new piece here to cover pawn promotion
     // capture : bool ?
     // check : bool ?
 }
@@ -63,26 +64,6 @@ pub struct GameState {
 }
 
 impl GameState {
-
-    pub fn new() -> GameState {
-        GameState {
-            board : [
-                [None,None,None,None,None,None,None,None],
-                [None,None,None,None,None,None,None,None],
-                [None,None,None,None,None,None,None,None],
-                [None,None,None,None,None,None,None,None],
-                [None,None,None,None,None,None,None,None],
-                [None,None,None,None,None,None,None,None],
-                [None,None,None,None,None,None,None,None],
-                [None,None,None,None,None,None,None,None],
-            ],
-            to_move : Color::White
-        }
-    }
-
-    pub fn get_square_state(&self, f: File, r: Rank) -> Option<(Color,Piece)> {
-        self.board[r as usize][f as usize]
-    }
 
     pub fn get_legal_moves(&self) -> Vec<Move> {
 
@@ -114,6 +95,10 @@ impl GameState {
             )
         })
         .collect()
+    }
+
+    fn get_square_state(&self, f: File, r: Rank) -> Option<(Color,Piece)> {
+        self.board[r as usize][f as usize]
     }
 
     fn get_legal_moves_for_piece_on_square(&self, f: File, r: Rank, c: Color, p: Piece) -> Vec<Move> {
@@ -153,14 +138,106 @@ impl GameState {
         })
         .into_iter()
         .filter(|&m| { 
-            let (file, rank) = m.new_position;
+            //assert_eq!(m.old_position.file, new_file, "Pawn should only be able to move vertically in non-capture situation");
 
-            self.get_square_state(file, rank).is_none() 
+            println!("Checking if piece between {:?} and {:?}", m.old_position, m.new_position);
+
+            self.get_first_occupied_square(m.old_position, m.new_position).is_none()
         })
         .collect()
     
         // Can't move to square where piece already is
         // @TODO - this won't work with captures, perhaps can concat with captures???
+    }
+
+    fn get_first_occupied_square(&self, start: (File,Rank), finish: (File,Rank)) -> Option<(File,Rank)> {
+
+        let get_first_occupied = |files:&mut dyn DoubleEndedIterator<Item=u8>, ranks:&mut dyn DoubleEndedIterator<Item=u8>| 
+            files.zip(ranks)
+            .skip(1)
+            .find_map(|pos| {
+                let (file, rank) = pos;
+
+                println!("Checking square state for {:?}{:?}", file, rank);
+                let file = num::FromPrimitive::from_u8(file).unwrap();
+                let rank = num::FromPrimitive::from_u8(rank).unwrap();
+
+                match self.get_square_state(file, rank) {
+                    Some(_) => Some((file, rank)),
+                    None => None
+                }
+            });
+
+        let (start_file, start_rank) = start;
+        let (finish_file, finish_rank) = finish;
+        
+       // @TODO - assert that range is straight line or diagnal
+        let files:&mut dyn DoubleEndedIterator<Item=u8> = &mut (start_file as u8..=finish_file as u8);
+        let files_rev:&mut dyn DoubleEndedIterator<Item=u8> = &mut (finish_file as u8..=start_file as u8).rev();
+        let files_repeat:&mut dyn DoubleEndedIterator<Item=u8> = &mut repeat(start_file as u8);
+
+        print!("Files: ");
+        for f in files.skip(0) {
+            let f:File = num::FromPrimitive::from_u8(f).unwrap();
+            print!("{:?}, ", f);
+        }
+        print!("\n");
+
+        print!("Files Rev: ");
+        for f in files_rev.skip(0) {
+            let f:File = num::FromPrimitive::from_u8(f).unwrap();
+            print!("{:?}, ", f);
+        }
+        print!("\n");
+
+        let ranks:&mut dyn DoubleEndedIterator<Item=u8> = &mut (start_rank as u8..=finish_rank as u8);
+        let ranks_rev:&mut dyn DoubleEndedIterator<Item=u8> = &mut (finish_rank as u8..=start_rank as u8).rev();
+        let ranks_repeat:&mut dyn DoubleEndedIterator<Item=u8> = &mut repeat(start_rank as u8);
+
+        match (finish_file.cmp(&start_file), finish_rank.cmp(&start_rank)) {
+            (Ordering::Greater, Ordering::Greater) => { 
+                println!("Branch 1"); 
+                get_first_occupied(files, ranks) 
+            },
+            (Ordering::Greater, Ordering::Less) => { 
+                println!("Branch 2"); 
+                get_first_occupied(files, ranks_rev) 
+            },
+            (Ordering::Greater, Ordering::Equal) => { 
+                println!("Branch 3"); 
+                get_first_occupied(files, ranks_repeat) 
+            },
+            (Ordering::Equal, Ordering::Greater) => { 
+                println!("Branch 4"); 
+                get_first_occupied(files_repeat, ranks) 
+            },
+            (Ordering::Equal, Ordering::Less) => { 
+                println!("Branch 5"); 
+                get_first_occupied(files_repeat, ranks_rev) 
+            },
+            (Ordering::Equal, Ordering::Equal) => { 
+                println!("Branch 6"); 
+                panic!("Illegal Case")
+            },
+            (Ordering::Less, Ordering::Greater) => { 
+                println!("Branch 7"); 
+                get_first_occupied(files_rev, ranks) 
+            },
+            (Ordering::Less, Ordering::Less) => { 
+                println!("Branch 8"); 
+                get_first_occupied(files_rev, ranks_rev) 
+            },
+            (Ordering::Less, Ordering::Equal) => { 
+                println!("Branch 9"); 
+                get_first_occupied(files_rev, ranks_repeat) 
+            },
+        }
+        /*match (finish_file > start_file, finish_rank > start_rank) { 
+            (true, true) => { println!("Branch 1"); get_first_occupied(files, ranks) },
+            (false, true) => { println!("Branch 2"); get_first_occupied(files_rev, ranks) },
+            (true, false) => { println!("Branch 3"); get_first_occupied(files, ranks_rev) },
+            (false, false) => { println!("Branch 4"); get_first_occupied(files_rev, ranks_rev) },
+        } */
     }
 /*
     pub fn is_checkmate(game_state: GameState) -> bool {
@@ -179,12 +256,14 @@ impl GameState {
     }*/
 }
 
+// @TODO - move to seperate file
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::iter::zip;
     use std::fmt::Debug;
 
+    // @TODO - move to generic helper libray
     fn are_equivelent<T>(actual:&Vec<T>, expected:&Vec<T>) -> bool 
         where T: Debug + PartialEq
     {
@@ -290,6 +369,48 @@ mod tests {
                     [None,None,None,None,None,None,None,None],
                 ],
                 to_move : Color::White
+            }, Vec::new()),
+
+            black_pawn_should_not_be_able_to_move_if_blocked_by_another_piece: (GameState {
+                board : [
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [Some((Color::Black, Piece::Pawn)),None,None,None,None,None,None,None],
+                    [Some((Color::White, Piece::Pawn)),None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                ],
+                to_move : Color::Black
+            }, Vec::new()),
+
+            white_pawn_should_not_be_able_to_jump_over_another_piece: (GameState {
+                board : [
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [Some((Color::Black, Piece::Pawn)),None,None,None,None,None,None,None],
+                    [Some((Color::White, Piece::Pawn)),None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                ],
+                to_move : Color::White
+            }, Vec::new()),
+
+            black_pawn_should_not_be_able_to_jump_over_another_piece: (GameState {
+                board : [
+                    [None,None,None,None,None,None,None,None],
+                    [Some((Color::Black, Piece::Pawn)),None,None,None,None,None,None,None],
+                    [Some((Color::White, Piece::Pawn)),None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                ],
+                to_move : Color::Black
             }, Vec::new()),
         }
 
