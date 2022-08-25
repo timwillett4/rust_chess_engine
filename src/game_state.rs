@@ -106,7 +106,7 @@ impl GameState {
 
         match p {
             Piece::Pawn => self.get_legal_pawn_moves(pos),
-            _ => Vec::new()
+            _ => panic!("Unimplemented")
         }
     }
     
@@ -114,38 +114,45 @@ impl GameState {
 
         assert!(pos.rank != Rank::_1 && pos.rank != Rank::_8, "Pawn can not be on first or last rank");
         
-        (match (self.to_move, pos.rank) {
-            (Color::White, Rank::_2) => {
-                vec![Move{old_position: pos, new_position: Pos{file: pos.file, rank: Rank::_3}, capture: false, check: false, promotion: None},
-                     Move{old_position: pos, new_position: Pos{file: pos.file, rank: Rank::_4}, capture: false, check: false, promotion: None}]
-            },
-            (Color::White, rank) => {
-                let new_rank = rank as i32 - 1;
-                let new_rank = num::FromPrimitive::from_i32(new_rank).unwrap();
-
-                vec![Move{old_position: pos, new_position: Pos{file: pos.file, rank: new_rank}, capture: false, check: false, promotion: None}]
-            },
-            (Color::Black, Rank::_7) => {
-                vec![Move{old_position: pos, new_position: Pos{file: pos.file, rank: Rank::_6}, capture: false, check: false, promotion: None},
-                     Move{old_position: pos, new_position: Pos{file: pos.file, rank: Rank::_5}, capture: false, check: false, promotion: None}]
-            },
-            (Color::Black, rank) => {
-                let new_rank = rank as i32 + 1;
-                let new_rank = num::FromPrimitive::from_i32(new_rank).unwrap();
-
-                vec![Move{old_position: pos, new_position: Pos{file:pos.file, rank: new_rank}, capture: false, check: false, promotion: None}]
-            },
-        })
+        match (self.to_move, pos.rank) {
+            // first move for white
+            (Color::White, Rank::_2) => vec![Rank::_3, Rank::_4],
+            // first move for black
+            (Color::Black, Rank::_7) => vec![Rank::_6, Rank::_5],
+            // ranks are in inverse numerical value (ie Rank_8 = 0, in order to make array initialization match chess board setup,
+            // hence non-intuitive negative for white and positive for black
+            (Color::White, rank) => vec![num::FromPrimitive::from_i32(rank as i32 - 1).unwrap()],
+            (Color::Black, rank) => vec![num::FromPrimitive::from_i32(rank as i32 + 1).unwrap()],
+        }
         .into_iter()
-        .filter(|&m| { 
-            assert_eq!(m.old_position.file, m.new_position.file, "Pawn should only be able to move vertically in non-capture situation");
-
-            self.get_first_occupied_square(m.old_position, m.new_position).is_none()
-        })
+        .map(|rank:Rank| Move{old_position:pos, new_position:Pos{file:pos.file, rank:rank}, capture:false, check:false, promotion:None})
+        // filter any moves that would involve jumping over or landing on another piece
+        .filter(|&m| self.get_first_occupied_square(m.old_position, m.new_position).is_none())
+        .chain(self.get_legal_pawn_capture(pos))
+        // @TODO - convert to promotion if moving to back rank
         .collect()
-    
-        // Can't move to square where piece already is
-        // @TODO - this won't work with captures, perhaps can concat with captures???
+    }
+
+    fn get_legal_pawn_capture(&self, pos: Pos) -> Vec<Move> {
+
+        let rank:Rank = match self.to_move {
+            Color::White => num::FromPrimitive::from_i32(pos.rank as i32 - 1).unwrap(),
+            Color::Black => num::FromPrimitive::from_i32(pos.rank as i32 + 1).unwrap()
+        };
+
+        // can capture either right or left diagnal
+        vec![pos.file as i32 - 1, pos.file as i32 + 1]
+        .iter()
+        // from_i32 returns none for invalid enum which takes care of filtering
+        // off the board captures if on A or H file
+        .filter_map(|file| num::FromPrimitive::from_i32(*file))
+        .map(|file| Pos{file, rank})
+        .filter_map(|capture_pos| match self.get_square_state(capture_pos) {
+            Some((color, _)) if color != self.to_move => 
+                Some(Move{old_position:pos, new_position:capture_pos, check:false, capture:true, promotion: None}),
+            _ => None
+         })
+         .collect()
     }
 
     fn get_first_occupied_square(&self, start: Pos, finish: Pos) -> Option<Pos> {
@@ -378,7 +385,6 @@ mod tests {
                 ],
                 to_move : Color::White
             }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_3}, new_position:Pos{file:File::A, rank:Rank::_4}, capture:false, check: false, promotion: None },
-                    Move{old_position: Pos{file:File::B, rank:Rank::_4}, new_position:Pos{file:File::B, rank:Rank::_5}, capture:false, check: false, promotion: None },
                     Move{old_position: Pos{file:File::A, rank:Rank::_3}, new_position:Pos{file:File::B, rank:Rank::_4}, capture:true, check: false, promotion: None }]),
 
             black_pawn_should_be_able_to_capture_on_diaganol: (GameState {
@@ -394,7 +400,6 @@ mod tests {
                 ],
                 to_move : Color::Black
             }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_6}, new_position:Pos{file:File::A, rank:Rank::_5}, capture:false, check: false, promotion: None },
-                    Move{old_position: Pos{file:File::B, rank:Rank::_5}, new_position:Pos{file:File::B, rank:Rank::_4}, capture:false, check: false, promotion: None },
                     Move{old_position: Pos{file:File::A, rank:Rank::_6}, new_position:Pos{file:File::B, rank:Rank::_5}, capture:true, check: false, promotion: None }]),
         
             white_pawn_should_not_be_able_to_capture_same_color: (GameState {
