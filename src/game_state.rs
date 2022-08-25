@@ -74,28 +74,22 @@ impl GameState {
 
     pub fn get_legal_moves(&self) -> Vec<Move> {
 
-        let create_file = |f:File| (0..7)
-            .map(|f| num::FromPrimitive::from_u32(f).unwrap())
-            .map(move |r:Rank| match self.get_square_state(f, r) {
-                Some(piece) => Some(((f,r), piece)),
-                _ => None
+        let create_ranks = || (0..7).map(|r| num::FromPrimitive::from_u32(r).expect(&String::from("Expected 0 to 7 to be able to be mapped to a rank")));
+
+        let files = (0..7).map(|f| num::FromPrimitive::from_u32(f).expect(&String::from("Expected 0 to 7 to be able to be mapped to a file")));
+        
+        let squares = files.flat_map(|file:File| create_ranks().map(move |rank:Rank| Pos{file, rank}));
+
+        let squars_occupied_by_to_move = squares.filter_map(|pos| match self.get_square_state(pos) {
+            Some((color,piece)) if color == self.to_move => Some((pos, (color,piece))),
+            _ => None
         });
 
-        (0..7)
-        .map(|f| num::FromPrimitive::from_u32(f).unwrap())
-        .flat_map(create_file)
-        .filter_map(|tuple| {
-
-            match tuple {
-                Some((coord, (color, piece))) if color == self.to_move => Some((coord, (color, piece))),
-                _ => None
-            }
-        })
-        .flat_map(|tuple| {
-            let ((file, rank), (color, piece)) = tuple;
+        squars_occupied_by_to_move.flat_map(|tuple| {
+            let (pos, (color, piece)) = tuple;
 
             self.get_legal_moves_for_piece_on_square(
-                Pos{file,rank},
+                pos,
                 color,
                 piece
             )
@@ -103,8 +97,8 @@ impl GameState {
         .collect()
     }
 
-    fn get_square_state(&self, f: File, r: Rank) -> Option<(Color,Piece)> {
-        self.board[r as usize][f as usize]
+    fn get_square_state(&self, pos:Pos) -> Option<(Color,Piece)> {
+        self.board[pos.rank as usize][pos.file as usize]
     }
 
     fn get_legal_moves_for_piece_on_square(&self, pos:Pos, c: Color, p: Piece) -> Vec<Move> {
@@ -167,7 +161,7 @@ impl GameState {
 
                 let pos = Pos{file, rank};
 
-                match self.get_square_state(file, rank) {
+                match self.get_square_state(pos) {
                     Some(_) => Some(pos),
                     None => None
                 }
