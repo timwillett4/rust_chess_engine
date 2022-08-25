@@ -129,7 +129,15 @@ impl GameState {
         // filter any moves that would involve jumping over or landing on another piece
         .filter(|&m| self.get_first_occupied_square(m.old_position, m.new_position).is_none())
         .chain(self.get_legal_pawn_capture(pos))
-        // @TODO - convert to promotion if moving to back rank
+        .flat_map(|m:Move| match m.new_position.rank {
+            Rank::_1 | Rank::_8 => {
+                vec![Move{promotion:Some(Piece::Knight), ..m},
+                     Move{promotion:Some(Piece::Bishop), ..m},
+                     Move{promotion:Some(Piece::Rook), ..m},
+                     Move{promotion:Some(Piece::Queen), ..m}]
+            },
+            _ => vec![m]
+        })
         .collect()
     }
 
@@ -174,8 +182,6 @@ impl GameState {
                 }
             });
 
-       // @TODO - assert that range is straight line or diagnal
-
         let files:&mut dyn DoubleEndedIterator<Item=u8> = &mut (start.file as u8..=finish.file as u8);
         let files_rev:&mut dyn DoubleEndedIterator<Item=u8> = &mut (finish.file as u8..=start.file as u8).rev();
         let files_repeat:&mut dyn DoubleEndedIterator<Item=u8> = &mut repeat(start.file as u8);
@@ -184,6 +190,7 @@ impl GameState {
         let ranks_rev:&mut dyn DoubleEndedIterator<Item=u8> = &mut (finish.rank as u8..=start.rank as u8).rev();
         let ranks_repeat:&mut dyn DoubleEndedIterator<Item=u8> = &mut repeat(start.rank as u8);
 
+        // @TODO - assert is straight line or diagnal
         match (finish.file.cmp(&start.file), finish.rank.cmp(&start.rank)) {
             (Ordering::Greater, Ordering::Greater) => get_first_occupied(files, ranks),
             (Ordering::Greater, Ordering::Less) => get_first_occupied(files, ranks_rev),
@@ -432,8 +439,83 @@ mod tests {
             }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_6}, new_position:Pos{file:File::A, rank:Rank::_5}, capture: false, check: false, promotion: None },
                     Move{old_position: Pos{file:File::B, rank:Rank::_5}, new_position:Pos{file:File::B, rank:Rank::_4}, capture: false, check: false, promotion: None }]),
 
+            white_pawn_should_be_able_to_promote_if_on_7th_rank: (GameState {
+                board : [
+                    [None,None,None,None,None,None,None,None],
+                    [Some((Color::White, Piece::Pawn)),None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                ],
+                to_move : Color::White
+            }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::A, rank:Rank::_8}, capture: false, check: false, promotion: Some(Piece::Knight) },
+                    Move{old_position: Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::A, rank:Rank::_8}, capture: false, check: false, promotion: Some(Piece::Bishop) },
+                    Move{old_position: Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::A, rank:Rank::_8}, capture: false, check: false, promotion: Some(Piece::Rook) },
+                    Move{old_position: Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::A, rank:Rank::_8}, capture: false, check: false, promotion: Some(Piece::Queen) }]),
+            
+            black_pawn_should_be_able_to_promote_if_on_2nd_rank: (GameState {
+                board : [
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [Some((Color::Black, Piece::Pawn)),None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                ],
+                to_move : Color::Black
+            }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::A, rank:Rank::_1}, capture: false, check: false, promotion: Some(Piece::Knight) },
+                    Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::A, rank:Rank::_1}, capture: false, check: false, promotion: Some(Piece::Bishop) },
+                    Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::A, rank:Rank::_1}, capture: false, check: false, promotion: Some(Piece::Rook) },
+                    Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::A, rank:Rank::_1}, capture: false, check: false, promotion: Some(Piece::Queen) }]),
+
+            white_pawn_should_be_able_to_promote_when_capturing_on_8th_rank: (GameState {
+                board : [
+                    [None,Some((Color::Black, Piece::Pawn)),None,None,None,None,None,None],
+                    [Some((Color::White, Piece::Pawn)),None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                ],
+                to_move : Color::White
+            }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::A, rank:Rank::_8}, capture: false, check: false, promotion: Some(Piece::Knight) },
+                    Move{old_position: Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::A, rank:Rank::_8}, capture: false, check: false, promotion: Some(Piece::Bishop) },
+                    Move{old_position: Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::A, rank:Rank::_8}, capture: false, check: false, promotion: Some(Piece::Rook) },
+                    Move{old_position: Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::A, rank:Rank::_8}, capture: false, check: false, promotion: Some(Piece::Queen) },
+                    Move{old_position: Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::B, rank:Rank::_8}, capture: true, check: false, promotion: Some(Piece::Knight) },
+                    Move{old_position: Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::B, rank:Rank::_8}, capture: true, check: false, promotion: Some(Piece::Bishop) },
+                    Move{old_position: Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::B, rank:Rank::_8}, capture: true, check: false, promotion: Some(Piece::Rook) },
+                    Move{old_position: Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::B, rank:Rank::_8}, capture: true, check: false, promotion: Some(Piece::Queen) }]),
+
+            black_pawn_should_be_able_to_promote_when_capturing_on_1st_rank: (GameState {
+                board : [
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [Some((Color::Black, Piece::Pawn)),None,None,None,None,None,None,None],
+                    [None, Some((Color::White, Piece::Pawn)),None,None,None,None,None,None],
+                ],
+                to_move : Color::Black
+            }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::A, rank:Rank::_1}, capture: false, check: false, promotion: Some(Piece::Knight) },
+                    Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::A, rank:Rank::_1}, capture: false, check: false, promotion: Some(Piece::Bishop) },
+                    Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::A, rank:Rank::_1}, capture: false, check: false, promotion: Some(Piece::Rook) },
+                    Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::A, rank:Rank::_1}, capture: false, check: false, promotion: Some(Piece::Queen) },
+                    Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::B, rank:Rank::_1}, capture: true, check: false, promotion: Some(Piece::Knight) },
+                    Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::B, rank:Rank::_1}, capture: true, check: false, promotion: Some(Piece::Bishop) },
+                    Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::B, rank:Rank::_1}, capture: true, check: false, promotion: Some(Piece::Rook) },
+                    Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::B, rank:Rank::_1}, capture: true, check: false, promotion: Some(Piece::Queen) }]),
+
             // en-passant
-            // promotion
         }
     }
 }
