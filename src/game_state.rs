@@ -61,13 +61,15 @@ pub struct Move {
     promotion: Option<Piece>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GameState {
     board: [[Option<(Color,Piece)>; 8]; 8],
-    to_move: Color
+    to_move: Color,
+    previous_moves: Vec<Move>,
+    // @TODO - should be able to calculate below o from just
+    // previous move list but probably won't be most optimal way 
     // @TODO - move count since pawn move/capture
     // @TODO -all previous hashes to check for 3 move repition draw
-    // @TODO - also need previous move for en-passan
 }
 
 impl GameState {
@@ -276,7 +278,8 @@ mod tests {
                     [Some((Color::White, Piece::Pawn)),None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                 ],
-                to_move : Color::White
+                to_move : Color::White,
+                previous_moves: vec![],
             }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::A, rank:Rank::_3}, capture: false, check: false, promotion: None },
                     Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::A, rank:Rank::_4}, capture: false, check: false, promotion: None }]),
 
@@ -291,7 +294,8 @@ mod tests {
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                 ],
-                to_move : Color::Black
+                to_move : Color::Black,
+                previous_moves: vec![],
             }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::A, rank:Rank::_6}, capture:false, check: false, promotion: None },
                     Move{old_position: Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::A, rank:Rank::_5}, capture:false, check: false, promotion: None }]),
 
@@ -306,7 +310,8 @@ mod tests {
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                 ],
-                to_move : Color::White
+                to_move : Color::White,
+                previous_moves: vec![],
             }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_3}, new_position:Pos{file:File::A, rank:Rank::_4}, capture:false, check: false, promotion: None }]),
 
             black_pawn_should_be_able_to_move_one_squares_after_initial_move: (GameState {
@@ -320,7 +325,8 @@ mod tests {
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                 ],
-                to_move : Color::Black
+                to_move : Color::Black,
+                previous_moves: vec![],
             }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_6}, new_position:Pos{file:File::A, rank:Rank::_5}, capture:false, check: false, promotion: None }]),
 
             white_pawn_should_not_be_able_to_move_if_blocked_by_another_piece: (GameState {
@@ -334,7 +340,8 @@ mod tests {
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                 ],
-                to_move : Color::White
+                to_move : Color::White,
+                previous_moves: vec![],
             }, Vec::new()),
 
             black_pawn_should_not_be_able_to_move_if_blocked_by_another_piece: (GameState {
@@ -348,7 +355,8 @@ mod tests {
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                 ],
-                to_move : Color::Black
+                to_move : Color::Black,
+                previous_moves: vec![],
             }, Vec::new()),
 
             white_pawn_should_not_be_able_to_jump_over_another_piece: (GameState {
@@ -362,7 +370,8 @@ mod tests {
                     [Some((Color::White, Piece::Pawn)),None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                 ],
-                to_move : Color::White
+                to_move : Color::White,
+                previous_moves: vec![],
             }, Vec::new()),
 
             black_pawn_should_not_be_able_to_jump_over_another_piece: (GameState {
@@ -376,7 +385,8 @@ mod tests {
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                 ],
-                to_move : Color::Black
+                to_move : Color::Black,
+                previous_moves: vec![],
             }, Vec::new()),
 
             white_pawn_should_be_able_to_capture_on_diaganol: (GameState {
@@ -390,7 +400,8 @@ mod tests {
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                 ],
-                to_move : Color::White
+                to_move : Color::White,
+                previous_moves: vec![],
             }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_3}, new_position:Pos{file:File::A, rank:Rank::_4}, capture:false, check: false, promotion: None },
                     Move{old_position: Pos{file:File::A, rank:Rank::_3}, new_position:Pos{file:File::B, rank:Rank::_4}, capture:true, check: false, promotion: None }]),
 
@@ -405,7 +416,8 @@ mod tests {
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                 ],
-                to_move : Color::Black
+                to_move : Color::Black,
+                previous_moves: vec![],
             }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_6}, new_position:Pos{file:File::A, rank:Rank::_5}, capture:false, check: false, promotion: None },
                     Move{old_position: Pos{file:File::A, rank:Rank::_6}, new_position:Pos{file:File::B, rank:Rank::_5}, capture:true, check: false, promotion: None }]),
         
@@ -420,7 +432,8 @@ mod tests {
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                 ],
-                to_move : Color::White
+                to_move : Color::White,
+                previous_moves: vec![],
             }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_3}, new_position:Pos{file:File::A, rank:Rank::_4}, capture: false, check: false, promotion: None },
                     Move{old_position: Pos{file:File::B, rank:Rank::_4}, new_position:Pos{file:File::B, rank:Rank::_5}, capture: false, check: false, promotion: None }]),
 
@@ -435,7 +448,8 @@ mod tests {
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                 ],
-                to_move : Color::Black
+                to_move : Color::Black,
+                previous_moves: vec![],
             }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_6}, new_position:Pos{file:File::A, rank:Rank::_5}, capture: false, check: false, promotion: None },
                     Move{old_position: Pos{file:File::B, rank:Rank::_5}, new_position:Pos{file:File::B, rank:Rank::_4}, capture: false, check: false, promotion: None }]),
 
@@ -450,7 +464,8 @@ mod tests {
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                 ],
-                to_move : Color::White
+                to_move : Color::White,
+                previous_moves: vec![],
             }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::A, rank:Rank::_8}, capture: false, check: false, promotion: Some(Piece::Knight) },
                     Move{old_position: Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::A, rank:Rank::_8}, capture: false, check: false, promotion: Some(Piece::Bishop) },
                     Move{old_position: Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::A, rank:Rank::_8}, capture: false, check: false, promotion: Some(Piece::Rook) },
@@ -467,7 +482,8 @@ mod tests {
                     [Some((Color::Black, Piece::Pawn)),None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                 ],
-                to_move : Color::Black
+                to_move : Color::Black,
+                previous_moves: vec![],
             }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::A, rank:Rank::_1}, capture: false, check: false, promotion: Some(Piece::Knight) },
                     Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::A, rank:Rank::_1}, capture: false, check: false, promotion: Some(Piece::Bishop) },
                     Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::A, rank:Rank::_1}, capture: false, check: false, promotion: Some(Piece::Rook) },
@@ -484,7 +500,8 @@ mod tests {
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                 ],
-                to_move : Color::White
+                to_move : Color::White,
+                previous_moves: vec![],
             }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::A, rank:Rank::_8}, capture: false, check: false, promotion: Some(Piece::Knight) },
                     Move{old_position: Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::A, rank:Rank::_8}, capture: false, check: false, promotion: Some(Piece::Bishop) },
                     Move{old_position: Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::A, rank:Rank::_8}, capture: false, check: false, promotion: Some(Piece::Rook) },
@@ -505,17 +522,32 @@ mod tests {
                     [Some((Color::Black, Piece::Pawn)),None,None,None,None,None,None,None],
                     [None, Some((Color::White, Piece::Pawn)),None,None,None,None,None,None],
                 ],
-                to_move : Color::Black
-            }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::A, rank:Rank::_1}, capture: false, check: false, promotion: Some(Piece::Knight) },
-                    Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::A, rank:Rank::_1}, capture: false, check: false, promotion: Some(Piece::Bishop) },
-                    Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::A, rank:Rank::_1}, capture: false, check: false, promotion: Some(Piece::Rook) },
-                    Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::A, rank:Rank::_1}, capture: false, check: false, promotion: Some(Piece::Queen) },
-                    Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::B, rank:Rank::_1}, capture: true, check: false, promotion: Some(Piece::Knight) },
-                    Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::B, rank:Rank::_1}, capture: true, check: false, promotion: Some(Piece::Bishop) },
-                    Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::B, rank:Rank::_1}, capture: true, check: false, promotion: Some(Piece::Rook) },
-                    Move{old_position: Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::B, rank:Rank::_1}, capture: true, check: false, promotion: Some(Piece::Queen) }]),
+                to_move : Color::Black,
+                previous_moves: vec![],
+            }, vec![Move{old_position:Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::A, rank:Rank::_1}, capture:false, check:false, promotion:Some(Piece::Knight) },
+                    Move{old_position:Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::A, rank:Rank::_1}, capture:false, check:false, promotion:Some(Piece::Bishop) },
+                    Move{old_position:Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::A, rank:Rank::_1}, capture:false, check:false, promotion:Some(Piece::Rook) },
+                    Move{old_position:Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::A, rank:Rank::_1}, capture:false, check:false, promotion:Some(Piece::Queen) },
+                    Move{old_position:Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::B, rank:Rank::_1}, capture:true, check:false, promotion:Some(Piece::Knight) },
+                    Move{old_position:Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::B, rank:Rank::_1}, capture:true, check:false, promotion:Some(Piece::Bishop) },
+                    Move{old_position:Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::B, rank:Rank::_1}, capture:true, check:false, promotion:Some(Piece::Rook) },
+                    Move{old_position:Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::B, rank:Rank::_1}, capture:true, check:false, promotion:Some(Piece::Queen) }]),
 
-            // en-passant
+            white_pawn_should_be_able_to_capture_en_passant:(GameState {
+                board : [
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [Some((Color::White, Piece::Pawn)),None,None,None,None,None,None,None],
+                    [None,Some((Color::Black, Piece::Pawn)),None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                ],
+                to_move:Color::White,
+                previous_moves: vec![Move{old_position: Pos{file:File::B, rank:Rank::_7}, new_position:Pos{file:File::B, rank:Rank::_5}, capture:false, check:false, promotion:None }],
+            }, vec![Move{old_position:Pos{file:File::A, rank:Rank::_6}, new_position:Pos{file:File::A, rank:Rank::_7}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::A, rank:Rank::_6}, new_position:Pos{file:File::B, rank:Rank::_7}, capture:true, check:false, promotion:None }]),
         }
     }
 }
