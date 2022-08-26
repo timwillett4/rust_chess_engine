@@ -91,7 +91,7 @@ impl GameState {
             let (pos, (color, piece)) = tuple;
 
             self.get_legal_moves_for_piece_on_square(
-                pos,
+                &pos,
                 color,
                 piece
             )
@@ -103,7 +103,7 @@ impl GameState {
         self.board[pos.rank as usize][pos.file as usize]
     }
 
-    fn get_legal_moves_for_piece_on_square(&self, pos:Pos, c:Color, p:Piece) -> Vec<Move> {
+    fn get_legal_moves_for_piece_on_square(&self, pos:&Pos, c:Color, p:Piece) -> Vec<Move> {
         assert!(c == self.to_move, "Only pieces of color to move should be able to move");
 
         match p {
@@ -112,7 +112,7 @@ impl GameState {
         }
     }
     
-    fn get_legal_pawn_moves(&self, pos:Pos) -> Vec<Move> {
+    fn get_legal_pawn_moves(&self, pos:&Pos) -> Vec<Move> {
 
         assert!(pos.rank != Rank::_1 && pos.rank != Rank::_8, "Pawn can not be on first or last rank");
         
@@ -127,7 +127,7 @@ impl GameState {
             (Color::Black, rank) => vec![num::FromPrimitive::from_i32(rank as i32 + 1).unwrap()],
         }
         .into_iter()
-        .map(|rank:Rank| Move{old_position:pos, new_position:Pos{file:pos.file, rank:rank}, capture:false, check:false, promotion:None})
+        .map(|rank:Rank| Move{old_position:*pos, new_position:Pos{file:pos.file, rank:rank}, capture:false, check:false, promotion:None})
         // filter any moves that would involve jumping over or landing on another piece
         .filter(|&m| self.get_first_occupied_square(&m.old_position, &m.new_position).is_none())
         .chain(self.get_legal_pawn_capture(pos))
@@ -143,7 +143,7 @@ impl GameState {
         .collect()
     }
 
-    fn get_legal_pawn_capture(&self, pos:Pos) -> Vec<Move> {
+    fn get_legal_pawn_capture(&self, pos:&Pos) -> Vec<Move> {
 
         let rank:Rank = match self.to_move {
             Color::White => num::FromPrimitive::from_i32(pos.rank as i32 - 1).unwrap(),
@@ -159,7 +159,7 @@ impl GameState {
         .map(|file| Pos{file, rank})
         .filter_map(|capture_pos| match self.get_square_state(&capture_pos) {
             Some((color, _)) if color != self.to_move => 
-                Some(Move{old_position:pos, new_position:capture_pos, check:false, capture:true, promotion:None}),
+                Some(Move{old_position:*pos, new_position:capture_pos, check:false, capture:true, promotion:None}),
             _ => None
          })
          .collect()
