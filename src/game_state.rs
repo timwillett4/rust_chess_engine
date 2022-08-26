@@ -82,12 +82,12 @@ impl GameState {
         
         let squares = files.flat_map(|file:File| create_ranks().map(move |rank:Rank| Pos{file, rank}));
 
-        let squars_occupied_by_to_move = squares.filter_map(|pos| match self.get_square_state(pos) {
+        let squares_occupied_by_to_move = squares.filter_map(|pos| match self.get_square_state(&pos) {
             Some((color,piece)) if color == self.to_move => Some((pos, (color,piece))),
             _ => None
         });
 
-        squars_occupied_by_to_move.flat_map(|tuple| {
+        squares_occupied_by_to_move.flat_map(|tuple| {
             let (pos, (color, piece)) = tuple;
 
             self.get_legal_moves_for_piece_on_square(
@@ -99,7 +99,7 @@ impl GameState {
         .collect()
     }
 
-    fn get_square_state(&self, pos:Pos) -> Option<(Color,Piece)> {
+    fn get_square_state(&self, pos:&Pos) -> Option<(Color,Piece)> {
         self.board[pos.rank as usize][pos.file as usize]
     }
 
@@ -129,7 +129,7 @@ impl GameState {
         .into_iter()
         .map(|rank:Rank| Move{old_position:pos, new_position:Pos{file:pos.file, rank:rank}, capture:false, check:false, promotion:None})
         // filter any moves that would involve jumping over or landing on another piece
-        .filter(|&m| self.get_first_occupied_square(m.old_position, m.new_position).is_none())
+        .filter(|&m| self.get_first_occupied_square(&m.old_position, &m.new_position).is_none())
         .chain(self.get_legal_pawn_capture(pos))
         .flat_map(|m:Move| match m.new_position.rank {
             Rank::_1 | Rank::_8 => {
@@ -157,7 +157,7 @@ impl GameState {
         // off the board captures if on A or H file
         .filter_map(|file| num::FromPrimitive::from_i32(*file))
         .map(|file| Pos{file, rank})
-        .filter_map(|capture_pos| match self.get_square_state(capture_pos) {
+        .filter_map(|capture_pos| match self.get_square_state(&capture_pos) {
             Some((color, _)) if color != self.to_move => 
                 Some(Move{old_position:pos, new_position:capture_pos, check:false, capture:true, promotion:None}),
             _ => None
@@ -165,24 +165,37 @@ impl GameState {
          .collect()
     }
 
-    fn get_first_occupied_square(&self, start:Pos, finish:Pos) -> Option<Pos> {
+    fn get_first_occupied_square(&self, start:&Pos, finish:&Pos) -> Option<Pos> {
 
-        let get_first_occupied = |files:&mut dyn DoubleEndedIterator<Item=u8>, ranks:&mut dyn DoubleEndedIterator<Item=u8>| 
+        self.get_positions_between(start, finish).iter().find_map(|pos|
+            match self.get_square_state(pos) {
+                Some(_) => Some(*pos),
+                None => None
+        })
+    }
+
+    /// get_squares_betwen returns a vector of positions representing all of the squares in between start and finish.
+    /// not couting the start square
+    /// Example: get_squares_between(Pos{file:File::_A, rank::rank:1}, Pos{file:File::_A, rank::rank:5})
+    ///          // Return: vec![Pos{file:File::_A, rank::Rank:2},
+    ///                          Pos{file:File::_A, rank::Rank:3}
+    ///                          Pos{file:File::_A, rank::Rank:4}
+    ///                          Pos{file:File::_A, rank::Rank:5}
+    /// Remarks: Start and finish must either be on the same rank, file or diaganol
+    fn get_positions_between(&self, start:&Pos, finish:&Pos) -> Vec<Pos> {
+
+        let get_positions = |files:&mut dyn DoubleEndedIterator<Item=u8>, ranks:&mut dyn DoubleEndedIterator<Item=u8>| 
             files.zip(ranks)
             .skip(1) // first square is current position
-            .find_map(|pos| {
+            .map(|pos| {
                 let (file, rank) = pos;
 
                 let file = num::FromPrimitive::from_u8(file).unwrap();
                 let rank = num::FromPrimitive::from_u8(rank).unwrap();
 
-                let pos = Pos{file, rank};
-
-                match self.get_square_state(pos) {
-                    Some(_) => Some(pos),
-                    None => None
-                }
-            });
+                Pos{file, rank}
+            })
+            .collect();
 
         let files:&mut dyn DoubleEndedIterator<Item=u8> = &mut (start.file as u8..=finish.file as u8);
         let files_rev:&mut dyn DoubleEndedIterator<Item=u8> = &mut (finish.file as u8..=start.file as u8).rev();
@@ -194,17 +207,17 @@ impl GameState {
 
         // @TODO - assert is straight line or diagnal
         match (finish.file.cmp(&start.file), finish.rank.cmp(&start.rank)) {
-            (Ordering::Greater, Ordering::Greater) => get_first_occupied(files, ranks),
-            (Ordering::Greater, Ordering::Less) => get_first_occupied(files, ranks_rev),
-            (Ordering::Greater, Ordering::Equal) => get_first_occupied(files, ranks_repeat),
+            (Ordering::Greater, Ordering::Greater) => get_positions(files, ranks),
+            (Ordering::Greater, Ordering::Less) => get_positions(files, ranks_rev),
+            (Ordering::Greater, Ordering::Equal) => get_positions(files, ranks_repeat),
 
-            (Ordering::Equal, Ordering::Greater) => get_first_occupied(files_repeat, ranks),
-            (Ordering::Equal, Ordering::Less) => get_first_occupied(files_repeat, ranks_rev),
+            (Ordering::Equal, Ordering::Greater) => get_positions(files_repeat, ranks),
+            (Ordering::Equal, Ordering::Less) => get_positions(files_repeat, ranks_rev),
             (Ordering::Equal, Ordering::Equal) => panic!("Can't move to same square"),
 
-            (Ordering::Less, Ordering::Greater) => get_first_occupied(files_rev, ranks),
-            (Ordering::Less, Ordering::Less) => get_first_occupied(files_rev, ranks_rev),
-            (Ordering::Less, Ordering::Equal) => get_first_occupied(files_rev, ranks_repeat),
+            (Ordering::Less, Ordering::Greater) => get_positions(files_rev, ranks),
+            (Ordering::Less, Ordering::Less) => get_positions(files_rev, ranks_rev),
+            (Ordering::Less, Ordering::Equal) => get_positions(files_rev, ranks_repeat),
         }
     }
 /*
