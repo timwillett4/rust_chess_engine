@@ -162,12 +162,13 @@ impl GameState {
                 Some(Move{old_position:*pos, new_position:capture_pos, check:false, capture:true, promotion:None}),
             _ => None
          })
+         // en passant?
          .collect()
     }
 
     fn get_first_occupied_square(&self, start:&Pos, finish:&Pos) -> Option<Pos> {
 
-        self.get_positions_between(start, finish).iter().find_map(|pos|
+        GameState::get_positions_between(start, finish).iter().find_map(|pos|
             match self.get_square_state(pos) {
                 Some(_) => Some(*pos),
                 None => None
@@ -182,7 +183,7 @@ impl GameState {
     ///                          Pos{file:File::_A, rank::Rank:4}
     ///                          Pos{file:File::_A, rank::Rank:5}
     /// Remarks: Start and finish must either be on the same rank, file or diaganol
-    fn get_positions_between(&self, start:&Pos, finish:&Pos) -> Vec<Pos> {
+    fn get_positions_between(start:&Pos, finish:&Pos) -> Vec<Pos> {
 
         let get_positions = |files:&mut dyn DoubleEndedIterator<Item=u8>, ranks:&mut dyn DoubleEndedIterator<Item=u8>| 
             files.zip(ranks)
@@ -561,6 +562,34 @@ mod tests {
                 previous_moves:vec![Move{old_position:Pos{file:File::B, rank:Rank::_7}, new_position:Pos{file:File::B, rank:Rank::_5}, capture:false, check:false, promotion:None }],
             }, vec![Move{old_position:Pos{file:File::A, rank:Rank::_6}, new_position:Pos{file:File::A, rank:Rank::_7}, capture:false, check:false, promotion:None },
                     Move{old_position:Pos{file:File::A, rank:Rank::_6}, new_position:Pos{file:File::B, rank:Rank::_7}, capture:true, check:false, promotion:None }]),
+        }
+    }
+
+    mod knight_tests {
+        use super::*;
+
+        legal_move_tests! {
+            white_pawn_should_be_able_to_move_one_or_two_squares_on_initial_move:(GameState {
+                board :[
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,Some((Color::White, Piece::Knight)),None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                ],
+                to_move :Color::White,
+                previous_moves:vec![],
+            }, vec![Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::E, rank:Rank::_6}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::F, rank:Rank::_5}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::F, rank:Rank::_3}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::E, rank:Rank::_2}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::C, rank:Rank::_2}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::B, rank:Rank::_3}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::B, rank:Rank::_5}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::C, rank:Rank::_6}, capture:false, check:false, promotion:None }]),
         }
     }
 }
