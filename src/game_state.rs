@@ -633,6 +633,22 @@ mod tests {
                 previous_moves:vec![Move{old_position:Pos{file:File::B, rank:Rank::_7}, new_position:Pos{file:File::B, rank:Rank::_5}, capture:false, check:false, promotion:None }],
             }, vec![Move{old_position:Pos{file:File::A, rank:Rank::_5}, new_position:Pos{file:File::A, rank:Rank::_6}, capture:false, check:false, promotion:None },
                     Move{old_position:Pos{file:File::A, rank:Rank::_5}, new_position:Pos{file:File::B, rank:Rank::_6}, capture:true, check:false, promotion:None }]),
+
+            black_pawn_should_be_able_to_capture_en_passant:(GameState {
+                board :[
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [Some((Color::White, Piece::Pawn)),Some((Color::Black, Piece::Pawn)),None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                ],
+                to_move:Color::Black,
+                previous_moves:vec![Move{old_position:Pos{file:File::A, rank:Rank::_2}, new_position:Pos{file:File::A, rank:Rank::_4}, capture:false, check:false, promotion:None }],
+            }, vec![Move{old_position:Pos{file:File::B, rank:Rank::_4}, new_position:Pos{file:File::B, rank:Rank::_3}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::B, rank:Rank::_4}, new_position:Pos{file:File::A, rank:Rank::_3}, capture:true, check:false, promotion:None }]),
         }
     }
 
