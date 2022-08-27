@@ -4,13 +4,13 @@ use std::cmp::Ordering;
 use std::iter::*;
 use num_derive::FromPrimitive;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, PartialOrd)]
 pub enum Color {
     White,
     Black
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, Ord, PartialOrd)]
 pub enum Piece {
     Pawn,
     Knight,
@@ -46,13 +46,13 @@ pub enum File {
     H
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Pos {
     file:File,
     rank:Rank
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub struct Move {
     old_position :Pos,
     new_position :Pos,
@@ -108,6 +108,7 @@ impl GameState {
 
         match p {
             Piece::Pawn => self.get_legal_pawn_moves(pos),
+            Piece::Knight => self.get_legal_knight_moves(pos),
             _ => panic!("Unimplemented")
         }
     }
@@ -164,6 +165,21 @@ impl GameState {
          })
          // en passant?
          .collect()
+    }
+
+    fn get_legal_knight_moves(&self, pos:&Pos) -> Vec<Move> {
+        // @TODO - extract all pairs method
+        // @TODO - make extension subtree crate
+        let moves = [(2,1),(2,-1),(1,2),(1,-2),(-1,2),(-1,-2),(-2,-1),(-2,1)];
+        let ranks = moves.iter().map(|(r,_)| -> Option<Rank> { num::FromPrimitive::from_i32(pos.rank as i32 + *r) });
+        let files = moves.iter().map(|(_,f)| -> Option<File> { num::FromPrimitive::from_i32(pos.file as i32 + *f) });
+        
+        ranks.zip(files)
+        .filter_map(|(r,f)| match (r,f) {
+            (Some(rank),Some(file)) => Some(Move{old_position:*pos, new_position:Pos{rank,file}, check:false, capture:false, promotion:None}),
+            _ => None
+        })
+        .collect()
     }
 
     fn get_first_occupied_square(&self, start:&Pos, finish:&Pos) -> Option<Pos> {
@@ -246,14 +262,16 @@ mod tests {
     use std::fmt::Debug;
 
     // @TODO - move to generic helper libray
-    fn are_equivelent<T>(actual:&Vec<T>, expected:&Vec<T>) -> bool 
-        where T:Debug + PartialEq
+    fn are_equivelent<T>(mut actual:Vec<T>, mut expected:Vec<T>) -> bool
+        where T:Debug + PartialEq + Ord
     {
         if actual.len() != expected.len() {
             println!("Length of actual ({:?}) does not equal length of expected ({:?})", actual.len(), expected.len());
             false
         } else {
-            zip(actual, expected)
+            actual.sort();
+            expected.sort();
+            actual.into_iter().zip(expected.into_iter())
             .all(|tuple| { 
                 let (actual, expected) = tuple; 
 
@@ -271,7 +289,7 @@ mod tests {
 
                     let actual = game_state.get_legal_moves();
 
-                    assert!(are_equivelent(&actual, &expected), "expected '{:?}' actual '{:?}'", expected, actual);
+                    assert!(are_equivelent(actual.clone(), expected.clone()), "expected '{:?}' actual '{:?}'", expected, actual);
                 }
             )*
         }
@@ -569,7 +587,7 @@ mod tests {
         use super::*;
 
         legal_move_tests! {
-            white_pawn_should_be_able_to_move_one_or_two_squares_on_initial_move:(GameState {
+            knight_should_be_able_to_move_in_l_shape:(GameState {
                 board :[
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
