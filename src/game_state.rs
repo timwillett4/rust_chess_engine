@@ -87,11 +87,9 @@ impl GameState {
             _ => None
         });
 
-        println!("get_legal_moves 5");
         squares_occupied_by_to_move.flat_map(|tuple| {
             let (pos, (color, piece)) = tuple;
 
-            println!("get_legal_moves 6");
             self.get_legal_moves_for_piece_on_square(
                 &pos,
                 color,
@@ -107,8 +105,6 @@ impl GameState {
 
     fn get_legal_moves_for_piece_on_square(&self, pos:&Pos, c:Color, p:Piece) -> Vec<Move> {
         assert!(c == self.to_move, "Only pieces of color to move should be able to move");
-
-        println!("get_legal_piece_on_square");
 
         match p {
             Piece::Pawn => self.get_legal_pawn_moves(pos),
@@ -631,7 +627,22 @@ mod tests {
             }, vec![Move{old_position:Pos{file:File::B, rank:Rank::_1}, new_position:Pos{file:File::A, rank:Rank::_3}, capture:false, check:false, promotion:None },
                     Move{old_position:Pos{file:File::B, rank:Rank::_1}, new_position:Pos{file:File::C, rank:Rank::_3}, capture:false, check:false, promotion:None },
                     Move{old_position:Pos{file:File::B, rank:Rank::_1}, new_position:Pos{file:File::D, rank:Rank::_2}, capture:false, check:false, promotion:None }]),
-            // @TODO - verify movements when on side of board
+
+            knight_can_not_land_on_own_piece:(GameState {
+                board :[
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [Some((Color::Black,Piece::Pawn)),None,None,None,None,None,None,None],
+                    [Some((Color::White,Piece::Pawn)),None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,Some((Color::White, Piece::Knight)),None,None,None,None,None,None],
+                ],
+                to_move :Color::White,
+                previous_moves:vec![],
+            }, vec![Move{old_position:Pos{file:File::B, rank:Rank::_1}, new_position:Pos{file:File::C, rank:Rank::_3}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::B, rank:Rank::_1}, new_position:Pos{file:File::D, rank:Rank::_2}, capture:false, check:false, promotion:None }]),
             // @TODO - can't land on own piece
             // @TODO - check tests
         }
