@@ -76,9 +76,9 @@ impl GameState {
 
     pub fn get_legal_moves(&self) -> Vec<Move> {
 
-        let create_ranks = || (0..7).map(|r| num::FromPrimitive::from_u32(r).expect(&String::from("Expected 0 to 7 to be able to be mapped to a rank")));
+        let create_ranks = || (0..8).map(|r| num::FromPrimitive::from_u32(r).expect(&String::from("Expected 0 to 7 to be able to be mapped to a rank")));
 
-        let files = (0..7).map(|f| num::FromPrimitive::from_u32(f).expect(&String::from("Expected 0 to 7 to be able to be mapped to a file")));
+        let files = (0..8).map(|f| num::FromPrimitive::from_u32(f).expect(&String::from("Expected 0 to 7 to be able to be mapped to a file")));
         
         let squares = files.flat_map(|file:File| create_ranks().map(move |rank:Rank| Pos{file, rank}));
 
@@ -87,9 +87,11 @@ impl GameState {
             _ => None
         });
 
+        println!("get_legal_moves 5");
         squares_occupied_by_to_move.flat_map(|tuple| {
             let (pos, (color, piece)) = tuple;
 
+            println!("get_legal_moves 6");
             self.get_legal_moves_for_piece_on_square(
                 &pos,
                 color,
@@ -105,6 +107,8 @@ impl GameState {
 
     fn get_legal_moves_for_piece_on_square(&self, pos:&Pos, c:Color, p:Piece) -> Vec<Move> {
         assert!(c == self.to_move, "Only pieces of color to move should be able to move");
+
+        println!("get_legal_piece_on_square");
 
         match p {
             Piece::Pawn => self.get_legal_pawn_moves(pos),
@@ -129,6 +133,7 @@ impl GameState {
         }
         .into_iter()
         .map(|rank:Rank| Move{old_position:*pos, new_position:Pos{file:pos.file, rank:rank}, capture:false, check:false, promotion:None})
+        // @TODO - may make sense to extract this since it is shared behavior with other piece movements 
         // filter any moves that would involve jumping over or landing on another piece
         .filter(|&m| self.get_first_occupied_square(&m.old_position, &m.new_position).is_none())
         .chain(self.get_legal_pawn_capture(pos))
@@ -168,6 +173,7 @@ impl GameState {
     }
 
     fn get_legal_knight_moves(&self, pos:&Pos) -> Vec<Move> {
+        println!("Get legal knight moves");
         // @TODO - extract all pairs method
         // @TODO - make extension subtree crate
         let moves = [(2,1),(2,-1),(1,2),(1,-2),(-1,2),(-1,-2),(-2,-1),(-2,1)];
@@ -175,6 +181,7 @@ impl GameState {
         let files = moves.iter().map(|(_,f)| -> Option<File> { num::FromPrimitive::from_i32(pos.file as i32 + *f) });
         
         ranks.zip(files)
+        .inspect(|(r,f)| println!("Zipped moves: R:{:?} F:{:?}",r,f))
         .filter_map(|(r,f)| match (r,f) {
             (Some(rank),Some(file)) => Some(Move{old_position:*pos, new_position:Pos{rank,file}, check:false, capture:false, promotion:None}),
             _ => None
@@ -258,7 +265,6 @@ impl GameState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::iter::zip;
     use std::fmt::Debug;
 
     // @TODO - move to generic helper libray
@@ -608,6 +614,26 @@ mod tests {
                     Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::B, rank:Rank::_3}, capture:false, check:false, promotion:None },
                     Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::B, rank:Rank::_5}, capture:false, check:false, promotion:None },
                     Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::C, rank:Rank::_6}, capture:false, check:false, promotion:None }]),
+        
+            knight_can_not_move_off_edge_of_board:(GameState {
+                board :[
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,Some((Color::White, Piece::Knight)),None,None,None,None,None,None],
+                ],
+                to_move :Color::White,
+                previous_moves:vec![],
+            }, vec![Move{old_position:Pos{file:File::B, rank:Rank::_1}, new_position:Pos{file:File::A, rank:Rank::_3}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::B, rank:Rank::_1}, new_position:Pos{file:File::C, rank:Rank::_3}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::B, rank:Rank::_1}, new_position:Pos{file:File::D, rank:Rank::_2}, capture:false, check:false, promotion:None }]),
+            // @TODO - verify movements when on side of board
+            // @TODO - can't land on own piece
+            // @TODO - check tests
         }
     }
 }
