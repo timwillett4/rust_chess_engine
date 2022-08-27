@@ -182,6 +182,11 @@ impl GameState {
             (Some(rank),Some(file)) => Some(Move{old_position:*pos, new_position:Pos{rank,file}, check:false, capture:false, promotion:None}),
             _ => None
         })
+        // can't land on own-piece
+        .filter(|m| match self.get_square_state(&m.new_position) {
+            Some((c, _)) if c == self.to_move => false,
+            _ => true
+        })
         .collect()
     }
 
