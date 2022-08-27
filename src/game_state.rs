@@ -169,23 +169,29 @@ impl GameState {
     }
 
     fn get_legal_knight_moves(&self, pos:&Pos) -> Vec<Move> {
-        println!("Get legal knight moves");
-        // @TODO - extract all pairs method
-        // @TODO - make extension subtree crate
         let moves = [(2,1),(2,-1),(1,2),(1,-2),(-1,2),(-1,-2),(-2,-1),(-2,1)];
         let ranks = moves.iter().map(|(r,_)| -> Option<Rank> { num::FromPrimitive::from_i32(pos.rank as i32 + *r) });
         let files = moves.iter().map(|(_,f)| -> Option<File> { num::FromPrimitive::from_i32(pos.file as i32 + *f) });
         
+        let is_landing_on_own_piece = |m:&Move| match self.get_square_state(&m.new_position) {
+            Some((c, _)) if c == self.to_move => true,
+            _ => false
+        };
+
+        let is_capturing = |m:&Move| match self.get_square_state(&m.new_position) {
+            Some((c, _)) if c != self.to_move => true,
+            _ => false
+        };
+
         ranks.zip(files)
-        .inspect(|(r,f)| println!("Zipped moves: R:{:?} F:{:?}",r,f))
         .filter_map(|(r,f)| match (r,f) {
             (Some(rank),Some(file)) => Some(Move{old_position:*pos, new_position:Pos{rank,file}, check:false, capture:false, promotion:None}),
             _ => None
         })
-        // can't land on own-piece
-        .filter(|m| match self.get_square_state(&m.new_position) {
-            Some((c, _)) if c == self.to_move => false,
-            _ => true
+        .filter(|m| is_landing_on_own_piece(m) == false)
+        .map(|m| match is_capturing(&m) {
+            true => Move{capture:true,..m},
+            false => m
         })
         .collect()
     }
@@ -648,7 +654,23 @@ mod tests {
                 previous_moves:vec![],
             }, vec![Move{old_position:Pos{file:File::B, rank:Rank::_1}, new_position:Pos{file:File::C, rank:Rank::_3}, capture:false, check:false, promotion:None },
                     Move{old_position:Pos{file:File::B, rank:Rank::_1}, new_position:Pos{file:File::D, rank:Rank::_2}, capture:false, check:false, promotion:None }]),
-            // @TODO - can't land on own piece
+
+            knight_can_capture_opponent_piece:(GameState {
+                board :[
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [Some((Color::Black,Piece::Pawn)),None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,Some((Color::White, Piece::Knight)),None,None,None,None,None,None],
+                ],
+                to_move :Color::White,
+                previous_moves:vec![],
+            }, vec![Move{old_position:Pos{file:File::B, rank:Rank::_1}, new_position:Pos{file:File::A, rank:Rank::_3}, capture:true, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::B, rank:Rank::_1}, new_position:Pos{file:File::C, rank:Rank::_3}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::B, rank:Rank::_1}, new_position:Pos{file:File::D, rank:Rank::_2}, capture:false, check:false, promotion:None }]),
             // @TODO - check tests
         }
     }
