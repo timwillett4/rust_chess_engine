@@ -129,7 +129,6 @@ impl GameState {
         }
         .into_iter()
         .map(|rank:Rank| Move{old_position:*pos, new_position:Pos{file:pos.file, rank:rank}, capture:false, check:false, promotion:None})
-        // @TODO - may make sense to extract this since it is shared behavior with other piece movements 
         // filter any moves that would involve jumping over or landing on another piece
         .filter(|&m| self.get_first_occupied_square(&m.old_position, &m.new_position).is_none())
         .chain(self.get_legal_pawn_capture(pos))
@@ -148,10 +147,54 @@ impl GameState {
     fn get_legal_pawn_capture(&self, pos:&Pos) -> Vec<Move> {
 
         let rank:Rank = match self.to_move {
-            Color::White => num::FromPrimitive::from_i32(pos.rank as i32 - 1).unwrap(),
-            Color::Black => num::FromPrimitive::from_i32(pos.rank as i32 + 1).unwrap()
+            Color::White => num::FromPrimitive::from_i32(pos.rank as i32 - 1).expect("Pawn should never be on last rank"),
+            Color::Black => num::FromPrimitive::from_i32(pos.rank as i32 + 1).expect("Pawn should never be on last rank"),
         };
 
+        let opponent_is_on_diaganol = |cap_sq:&Pos| match self.get_square_state(cap_sq) {
+            Some((color, _)) if color != self.to_move => true,
+            _ => false,
+        };
+
+        let can_en_passant_capture = |cap_sq:&Pos| {
+            let move_dist = |m:&Move| num::abs((m.new_position.rank as i32) - (m.old_position.rank as i32));
+
+            let was_opponent_first_pawn_move_of_2 = |m:&Move| match self.get_square_state(&m.new_position) {
+                Some((color,piece)) if color != self.to_move && piece == Piece::Pawn && move_dist(m) == 2 => true,
+                _ => false
+            };
+
+            let prev_to_move = match self.to_move {
+                Color::White => Color::Black,
+                Color::Black => Color::White
+            };
+
+            // where they would have moved if they only moved one
+            let move_one_rank = |prev_move_to_sq:&Pos| -> Rank { match prev_to_move {
+                Color::White => num::FromPrimitive::from_i32(prev_move_to_sq.rank as i32 + 1).expect("Pawn should never be on last rank"),
+                Color::Black => num::FromPrimitive::from_i32(prev_move_to_sq.rank as i32 - 1).expect("Pawn should never be on last rank")
+            }};
+
+            let move_one_pos = |prev_move_to_sq:&Pos| Pos{rank:move_one_rank(prev_move_to_sq),file:prev_move_to_sq.file};
+
+            match self.previous_moves.get(0) {
+                Some(m) => {
+                    println!("Was opponent first pawn move: {}", was_opponent_first_pawn_move_of_2(&m));
+                    println!("Cap pos: {:?}", cap_sq);
+                    println!("Prev old: {:?}", m.old_position);
+                    println!("Prev new: {:?}", m.new_position);
+                    println!("Move one pos: {:?}", move_one_pos(&m.new_position));
+                },
+                None => println!("No prev moves")
+            }
+
+            match self.previous_moves.get(0) {
+                Some(m) if was_opponent_first_pawn_move_of_2(&m) && move_one_pos(&m.new_position) == *cap_sq => true,
+                _ => false
+            }
+        };
+
+        //let is_opponenet_on_capture_square = 
         // can capture either right or left diagnal
         vec![pos.file as i32 - 1, pos.file as i32 + 1]
         .iter()
@@ -159,13 +202,10 @@ impl GameState {
         // off the board captures if on A or H file
         .filter_map(|file| num::FromPrimitive::from_i32(*file))
         .map(|file| Pos{file, rank})
-        .filter_map(|capture_pos| match self.get_square_state(&capture_pos) {
-            Some((color, _)) if color != self.to_move => 
-                Some(Move{old_position:*pos, new_position:capture_pos, check:false, capture:true, promotion:None}),
-            _ => None
-         })
-         // en passant?
-         .collect()
+        .inspect(|cap_sq| println!("Cap square: {:?}", cap_sq))
+        .filter(|cap_sq| opponent_is_on_diaganol(cap_sq) || can_en_passant_capture(cap_sq))
+        .map(|cap_sq| Move{old_position:*pos, new_position:cap_sq, capture:true, check: false, promotion: None})
+        .collect()
     }
 
     fn get_legal_knight_moves(&self, pos:&Pos) -> Vec<Move> {
@@ -582,8 +622,8 @@ mod tests {
                 board :[
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
-                    [Some((Color::White, Piece::Pawn)),None,None,None,None,None,None,None],
-                    [None,Some((Color::Black, Piece::Pawn)),None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [Some((Color::White, Piece::Pawn)),Some((Color::Black, Piece::Pawn)),None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
@@ -591,8 +631,8 @@ mod tests {
                 ],
                 to_move:Color::White,
                 previous_moves:vec![Move{old_position:Pos{file:File::B, rank:Rank::_7}, new_position:Pos{file:File::B, rank:Rank::_5}, capture:false, check:false, promotion:None }],
-            }, vec![Move{old_position:Pos{file:File::A, rank:Rank::_6}, new_position:Pos{file:File::A, rank:Rank::_7}, capture:false, check:false, promotion:None },
-                    Move{old_position:Pos{file:File::A, rank:Rank::_6}, new_position:Pos{file:File::B, rank:Rank::_7}, capture:true, check:false, promotion:None }]),
+            }, vec![Move{old_position:Pos{file:File::A, rank:Rank::_5}, new_position:Pos{file:File::A, rank:Rank::_6}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::A, rank:Rank::_5}, new_position:Pos{file:File::B, rank:Rank::_6}, capture:true, check:false, promotion:None }]),
         }
     }
 
