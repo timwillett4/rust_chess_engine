@@ -243,26 +243,34 @@ impl GameState {
         let top_left_file = num::FromPrimitive::from_i32(pos.file as i32 - sub_max).unwrap();
         let top_left_rank = num::FromPrimitive::from_i32(pos.rank as i32 - sub_max).unwrap();
         let top_left = Pos{file:top_left_file, rank:top_left_rank, };
+        let top_left = self.get_first_occupied_square(pos, &top_left).unwrap_or(top_left);
 
         let bottom_right_file = num::FromPrimitive::from_i32(pos.file as i32 + add_max).unwrap();
         let bottom_right_rank = num::FromPrimitive::from_i32(pos.rank as i32 + add_max).unwrap();
         let bottom_right = Pos{file:bottom_right_file, rank:bottom_right_rank};
+        let bottom_right = self.get_first_occupied_square(pos, &bottom_right).unwrap_or(bottom_right);
 
         let bottom_left_offset = std::cmp::min(file_offset, 7 - rank_offset);
         let bottom_left_file = num::FromPrimitive::from_i32(pos.file as i32 - bottom_left_offset).unwrap();
         let bottom_left_rank = num::FromPrimitive::from_i32(pos.rank as i32 + bottom_left_offset).unwrap();
         let bottom_left = Pos{file:bottom_left_file, rank:bottom_left_rank};
+        let bottom_left = self.get_first_occupied_square(pos, &bottom_left).unwrap_or(bottom_left);
 
         let top_right_offset = std::cmp::min(7 - file_offset, rank_offset);
         let top_right_file = num::FromPrimitive::from_i32(pos.file as i32 + top_right_offset).unwrap();
         let top_right_rank = num::FromPrimitive::from_i32(pos.rank as i32 - top_right_offset).unwrap();
         let top_right = Pos{file:top_right_file, rank:top_right_rank};
+        let top_right = self.get_first_occupied_square(pos, &top_right).unwrap_or(top_right);
 
         GameState::get_positions_between(&bottom_left, &top_right)
             .into_iter()
             .chain(GameState::get_positions_between(&top_left, &bottom_right).into_iter())
-            .filter(|new_pos| new_pos != pos)
             .map(|new_pos| Move{old_position:*pos, new_position:new_pos, check:false, capture: false, promotion: None})
+            .filter_map(|mov| match self.get_square_state(&mov.new_position) {
+                Some((Color::White, _)) => None,
+                Some((Color::Black, _)) => Some(Move{capture:true,..mov}),
+                None => Some(mov)
+            })
             .collect()
     }
 
@@ -317,7 +325,7 @@ impl GameState {
 
             (Ordering::Equal, Ordering::Greater) => get_positions(files_repeat, ranks),
             (Ordering::Equal, Ordering::Less) => get_positions(files_repeat, ranks_rev),
-            (Ordering::Equal, Ordering::Equal) => vec![*start], // start and finish are same sq, just return start
+            (Ordering::Equal, Ordering::Equal) => vec![*start], // start and finish are same square, just return start
 
             (Ordering::Less, Ordering::Greater) => get_positions(files_rev, ranks),
             (Ordering::Less, Ordering::Less) => get_positions(files_rev, ranks_rev),
@@ -902,5 +910,46 @@ mod tests {
                     Move{old_position:Pos{file:File::A, rank:Rank::_1}, new_position:Pos{file:File::G, rank:Rank::_7}, capture:false, check:false, promotion:None },
                     Move{old_position:Pos{file:File::A, rank:Rank::_1}, new_position:Pos{file:File::H, rank:Rank::_8}, capture:false, check:false, promotion:None }]),
         }
+    
+        legal_move_tests! {
+            bishop_should_not_be_able_to_jump_over_own_piece:(GameState {
+                board :[
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,Some((Color::White, Piece::Pawn)),None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [Some((Color::White, Piece::Bishop)),None,None,None,None,None,None,None],
+                ],
+                to_move :Color::White,
+                previous_moves:vec![],
+            }, vec![Move{old_position:Pos{file:File::A, rank:Rank::_1}, new_position:Pos{file:File::B, rank:Rank::_2}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::C, rank:Rank::_3}, new_position:Pos{file:File::C, rank:Rank::_4}, capture:false, check:false, promotion:None }]),
+        }
+
+        legal_move_tests! {
+            bishop_should_to_capture_opponent_piece:(GameState {
+                board :[
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,Some((Color::Black, Piece::Pawn)),None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [Some((Color::White, Piece::Bishop)),None,None,None,None,None,None,None],
+                ],
+                to_move :Color::White,
+                previous_moves:vec![],
+            }, vec![Move{old_position:Pos{file:File::A, rank:Rank::_1}, new_position:Pos{file:File::B, rank:Rank::_2}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::A, rank:Rank::_1}, new_position:Pos{file:File::C, rank:Rank::_3}, capture:true, check:false, promotion:None }]),
+        }
+        // @TODO 
+        // piece blocking
+        // capture
+        // check
+
     }
 }
