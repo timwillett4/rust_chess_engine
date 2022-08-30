@@ -317,7 +317,7 @@ impl GameState {
 
             (Ordering::Equal, Ordering::Greater) => get_positions(files_repeat, ranks),
             (Ordering::Equal, Ordering::Less) => get_positions(files_repeat, ranks_rev),
-            (Ordering::Equal, Ordering::Equal) => panic!("Can't move to same square"),
+            (Ordering::Equal, Ordering::Equal) => vec![*start], // start and finish are same sq, just return start
 
             (Ordering::Less, Ordering::Greater) => get_positions(files_rev, ranks),
             (Ordering::Less, Ordering::Less) => get_positions(files_rev, ranks_rev),
@@ -783,7 +783,7 @@ mod tests {
         use super::*;
 
         legal_move_tests! {
-            bishop_should_be_able_to_move_on_diaganol:(GameState {
+            bishop_should_be_able_to_move_on_diaganol_from_center_of_board:(GameState {
                 board :[
                     [None,None,None,None,None,None,None,None],
                     [None,None,None,None,None,None,None,None],
@@ -809,6 +809,98 @@ mod tests {
                     Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::C, rank:Rank::_5}, capture:false, check:false, promotion:None },
                     Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::B, rank:Rank::_6}, capture:false, check:false, promotion:None },
                     Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::A, rank:Rank::_7}, capture:false, check:false, promotion:None }]),
+        }
+
+        legal_move_tests! {
+            bishop_should_be_able_to_move_on_diaganol_from_left_side_of_board:(GameState {
+                board :[
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [Some((Color::White, Piece::Bishop)),None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                ],
+                to_move :Color::White,
+                previous_moves:vec![],
+            }, vec![Move{old_position:Pos{file:File::A, rank:Rank::_4}, new_position:Pos{file:File::B, rank:Rank::_3}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::A, rank:Rank::_4}, new_position:Pos{file:File::B, rank:Rank::_5}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::A, rank:Rank::_4}, new_position:Pos{file:File::C, rank:Rank::_2}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::A, rank:Rank::_4}, new_position:Pos{file:File::C, rank:Rank::_6}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::A, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_1}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::A, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_7}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::A, rank:Rank::_4}, new_position:Pos{file:File::E, rank:Rank::_8}, capture:false, check:false, promotion:None }]),
+        }
+
+        legal_move_tests! {
+            bishop_should_be_able_to_move_on_diaganol_from_right_side_of_board:(GameState {
+                board :[
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,Some((Color::White, Piece::Bishop))],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                ],
+                to_move :Color::White,
+                previous_moves:vec![],
+            }, vec![Move{old_position:Pos{file:File::H, rank:Rank::_4}, new_position:Pos{file:File::G, rank:Rank::_3}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::H, rank:Rank::_4}, new_position:Pos{file:File::G, rank:Rank::_5}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::H, rank:Rank::_4}, new_position:Pos{file:File::F, rank:Rank::_2}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::H, rank:Rank::_4}, new_position:Pos{file:File::F, rank:Rank::_6}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::H, rank:Rank::_4}, new_position:Pos{file:File::E, rank:Rank::_1}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::H, rank:Rank::_4}, new_position:Pos{file:File::E, rank:Rank::_7}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::H, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_8}, capture:false, check:false, promotion:None }]),
+        }
+
+        legal_move_tests! {
+            bishop_should_be_able_to_move_on_diaganol_from_top_of_board:(GameState {
+                board :[
+                    [None,None,None,Some((Color::White, Piece::Bishop)),None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                ],
+                to_move :Color::White,
+                previous_moves:vec![],
+            }, vec![Move{old_position:Pos{file:File::D, rank:Rank::_8}, new_position:Pos{file:File::C, rank:Rank::_7}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_8}, new_position:Pos{file:File::E, rank:Rank::_7}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_8}, new_position:Pos{file:File::B, rank:Rank::_6}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_8}, new_position:Pos{file:File::F, rank:Rank::_6}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_8}, new_position:Pos{file:File::A, rank:Rank::_5}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_8}, new_position:Pos{file:File::G, rank:Rank::_5}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_8}, new_position:Pos{file:File::H, rank:Rank::_4}, capture:false, check:false, promotion:None }]),
+        }
+
+        legal_move_tests! {
+            bishop_should_be_able_to_move_on_diaganol_from_diaganol:(GameState {
+                board :[
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [Some((Color::White, Piece::Bishop)),None,None,None,None,None,None,None],
+                ],
+                to_move :Color::White,
+                previous_moves:vec![],
+            }, vec![Move{old_position:Pos{file:File::A, rank:Rank::_1}, new_position:Pos{file:File::B, rank:Rank::_2}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::A, rank:Rank::_1}, new_position:Pos{file:File::C, rank:Rank::_3}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::A, rank:Rank::_1}, new_position:Pos{file:File::D, rank:Rank::_4}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::A, rank:Rank::_1}, new_position:Pos{file:File::E, rank:Rank::_5}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::A, rank:Rank::_1}, new_position:Pos{file:File::F, rank:Rank::_6}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::A, rank:Rank::_1}, new_position:Pos{file:File::G, rank:Rank::_7}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::A, rank:Rank::_1}, new_position:Pos{file:File::H, rank:Rank::_8}, capture:false, check:false, promotion:None }]),
         }
     }
 }
