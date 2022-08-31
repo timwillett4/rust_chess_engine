@@ -279,9 +279,16 @@ impl GameState {
     fn get_legal_rook_moves(&self, pos:&Pos) -> Vec<Move> {
         
         let top = Pos{file: pos.file, rank:Rank::_1};
+        let top = self.get_first_occupied_square(&pos, &top).unwrap_or(top);
+
         let bottom = Pos{file: pos.file, rank:Rank::_8};
+        let bottom = self.get_first_occupied_square(&pos, &bottom).unwrap_or(bottom);
+
         let left = Pos{file: File::A, rank:pos.rank};
+        let left = self.get_first_occupied_square(&pos, &left).unwrap_or(left);
+
         let right = Pos{file: File::H, rank:pos.rank};
+        let right = self.get_first_occupied_square(&pos, &right).unwrap_or(right);
 
         GameState::get_positions_between(&top, &bottom)
             .into_iter()
@@ -995,6 +1002,33 @@ mod tests {
                     Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::F, rank:Rank::_4}, capture:false, check:false, promotion:None },
                     Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::G, rank:Rank::_4}, capture:false, check:false, promotion:None },
                     Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::H, rank:Rank::_4}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_1}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_2}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_3}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_5}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_6}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_7}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_8}, capture:false, check:false, promotion:None }]),
+        }
+
+        legal_move_tests! {
+            rook_should_not_be_able_to_jump_over_own_piece:(GameState {
+                board :[
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,Some((Color::White, Piece::Rook)),Some((Color::White,Piece::Pawn)),None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                ],
+                to_move :Color::White,
+                previous_moves:vec![],
+            }, vec![Move{old_position:Pos{file:File::E, rank:Rank::_4}, new_position:Pos{file:File::E, rank:Rank::_5}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::A, rank:Rank::_4}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::B, rank:Rank::_4}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::C, rank:Rank::_4}, capture:false, check:false, promotion:None },
                     Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_1}, capture:false, check:false, promotion:None },
                     Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_2}, capture:false, check:false, promotion:None },
                     Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_3}, capture:false, check:false, promotion:None },
