@@ -114,6 +114,7 @@ impl GameState {
             Piece::Knight => self.get_legal_knight_moves(pos),
             Piece::Bishop => self.get_legal_bishop_moves(pos),
             Piece::Rook => self.get_legal_rook_moves(pos),
+            Piece::Queen => self.get_legal_queen_moves(pos),
             _ => panic!("Unimplemented")
         }
     }
@@ -266,7 +267,7 @@ impl GameState {
         // @TODO - extract this to private method as it is mostly identical to rook logic
         GameState::get_positions_between(&bottom_left, &top_right)
             .into_iter()
-            .chain(GameState::get_positions_between(&top_left, &bottom_right).into_iter())
+            .chain(GameState::get_positions_between(&top_left, &bottom_right))
             .map(|new_pos| Move{old_position:*pos, new_position:new_pos, check:false, capture: false, promotion: None})
             .filter_map(|mov| match self.get_square_state(&mov.new_position) {
                 Some((Color::White, _)) => None,
@@ -292,13 +293,20 @@ impl GameState {
 
         GameState::get_positions_between(&top, &bottom)
             .into_iter()
-            .chain(GameState::get_positions_between(&left, &right).into_iter())
+            .chain(GameState::get_positions_between(&left, &right))
             .map(|new_pos| Move{old_position:*pos, new_position:new_pos, check:false, capture: false, promotion: None})
             .filter_map(|mov| match self.get_square_state(&mov.new_position) {
                 Some((Color::White, _)) => None,
                 Some((Color::Black, _)) => Some(Move{capture:true,..mov}),
                 None => Some(mov)
             })
+            .collect()
+    }
+
+    fn get_legal_queen_moves(&self, pos:&Pos) -> Vec<Move> {
+        self.get_legal_bishop_moves(&pos)
+            .into_iter()
+            .chain(self.get_legal_rook_moves(&pos))
             .collect()
     }
 
@@ -1065,7 +1073,59 @@ mod tests {
                     Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_8}, capture:false, check:false, promotion:None }]),
         }
     }
-    // @TODO - rook
-    // @TODO - queen
+
+    mod queen_tests {
+        use super::*;
+
+        legal_move_tests! {
+            queen_sould_be_able_to_move_diagnanally_vertically_or_horizontally:(GameState {
+                board :[
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,Some((Color::White, Piece::Queen)),None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                ],
+                to_move :Color::White,
+                previous_moves:vec![],
+            }, vec![// diag 1
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::A, rank:Rank::_1}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::B, rank:Rank::_2}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::C, rank:Rank::_3}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::E, rank:Rank::_5}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::F, rank:Rank::_6}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::G, rank:Rank::_7}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::H, rank:Rank::_8}, capture:false, check:false, promotion:None },
+
+                    // diag 2
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::A, rank:Rank::_7}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::B, rank:Rank::_6}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::C, rank:Rank::_5}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::E, rank:Rank::_3}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::F, rank:Rank::_2}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::G, rank:Rank::_1}, capture:false, check:false, promotion:None },
+
+                    //horizontal
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::A, rank:Rank::_4}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::B, rank:Rank::_4}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::C, rank:Rank::_4}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::E, rank:Rank::_4}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::F, rank:Rank::_4}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::G, rank:Rank::_4}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::H, rank:Rank::_4}, capture:false, check:false, promotion:None },
+
+                    // vertical
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_1}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_2}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_3}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_5}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_6}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_7}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_8}, capture:false, check:false, promotion:None }]),
+        }
+    }
     // @TODO - king
 }
