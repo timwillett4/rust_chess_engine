@@ -52,6 +52,28 @@ pub struct Pos {
     rank:Rank
 }
 
+impl Pos {
+
+    pub fn is_on_same_file(&self, other:&Pos) -> bool {
+        self.file == other.file
+    }
+
+    pub fn is_on_same_rank(&self, other:&Pos) -> bool {
+        self.rank == other.rank
+    }
+
+    pub fn is_on_same_diagonal(&self, other:&Pos) -> bool {
+        let file_offset = num::abs(self.file as i32 - other.file as i32);
+        let rank_offset = num::abs(self.rank as i32 - other.rank as i32);
+    
+        file_offset == rank_offset
+    }
+
+    pub fn is_on_same_rank_file_or_diagnanol(&self, other:&Pos) -> bool {
+        self.is_on_same_file(other) || self.is_on_same_rank(other) || self.is_on_same_diagonal(other)
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub struct Move {
     old_position :Pos,
@@ -236,75 +258,93 @@ impl GameState {
 
     fn get_legal_bishop_moves(&self, pos:&Pos) -> Vec<Move> {
 
-        // @TODO - comment/clean up
+        // Bishop moves is looked at by finding 4 diaganols the piece can move to.
+        //
+        // Note: Up to 2 diagnols could be the same as the starting pos if the piece on
+        // an edge or corner
+        //
+        // To move diagnolly an equal offset magnitued (i.e. abs value) must be applied to 
+        // to both the file and rank of pos.
+        // 
+        // The four corners are determined, then by alternating the four possibilities of
+        // - and + in a pairwise manner
+        // 
+        // Ex: the following shows each as positive or negative with respect to (rank,file)
+        //      TL(-,-)         TR(+,-)
+        //                 x
+        //      BL(-,+)         TR(+,+)
+        //
+        //
+        // If the move is a negative move we are finding the biggest offset that ensures either file or
+        // rank does not go below zero
+        //
+        // If the move is a positive move we are finding the biggest offset that ensures either file or rank
+        // does not go above 7 (the maximum value for a rank/file)
+        //
+        // Ex:  D4 = (3,4)
+        // 
+        // To calcualte top left you need to apply a negative offset in both directions, thus 3 is going to be the
+        // largest offset that can be applied where both file and rank don't go below 0.
+        //
+        // This give top_left position of (3,4) - (3,3) = (0,1) = A7
+        //
+        // To calcualte bottom right you need to apply a positve offset in both directions, thus 3 is going to be the
+        // largest offset that can be applied where both file and rank don't over 7.
+        //
+        // This give bottom_left position of (3,4) + (3,3) = (6,7) = G1
         let rank_offset = pos.rank as i32;
         let file_offset = pos.file as i32;
 
-        let add_max = std::cmp::min(7-rank_offset, 7-file_offset);
-        let sub_max = std::cmp::min(rank_offset, file_offset);
-
-        let top_left_file = num::FromPrimitive::from_i32(pos.file as i32 - sub_max).unwrap();
-        let top_left_rank = num::FromPrimitive::from_i32(pos.rank as i32 - sub_max).unwrap();
+        // (-,-)
+        let top_left_offset = std::cmp::min(rank_offset, file_offset);
+        let top_left_file = num::FromPrimitive::from_i32(pos.file as i32 - top_left_offset).unwrap();
+        let top_left_rank = num::FromPrimitive::from_i32(pos.rank as i32 - top_left_offset).unwrap();
         let top_left = Pos{file:top_left_file, rank:top_left_rank, };
-        let top_left = self.get_first_occupied_square(pos, &top_left).unwrap_or(top_left);
 
-        let bottom_right_file = num::FromPrimitive::from_i32(pos.file as i32 + add_max).unwrap();
-        let bottom_right_rank = num::FromPrimitive::from_i32(pos.rank as i32 + add_max).unwrap();
+        // (+,+)
+        let top_right_offset = std::cmp::min(7 - rank_offset, 7 - file_offset);
+        let bottom_right_file = num::FromPrimitive::from_i32(pos.file as i32 + top_right_offset).unwrap();
+        let bottom_right_rank = num::FromPrimitive::from_i32(pos.rank as i32 + top_right_offset).unwrap();
         let bottom_right = Pos{file:bottom_right_file, rank:bottom_right_rank};
-        let bottom_right = self.get_first_occupied_square(pos, &bottom_right).unwrap_or(bottom_right);
 
+        // (-,+)
         let bottom_left_offset = std::cmp::min(file_offset, 7 - rank_offset);
         let bottom_left_file = num::FromPrimitive::from_i32(pos.file as i32 - bottom_left_offset).unwrap();
         let bottom_left_rank = num::FromPrimitive::from_i32(pos.rank as i32 + bottom_left_offset).unwrap();
         let bottom_left = Pos{file:bottom_left_file, rank:bottom_left_rank};
-        let bottom_left = self.get_first_occupied_square(pos, &bottom_left).unwrap_or(bottom_left);
 
+        // (+,-)
         let top_right_offset = std::cmp::min(7 - file_offset, rank_offset);
         let top_right_file = num::FromPrimitive::from_i32(pos.file as i32 + top_right_offset).unwrap();
         let top_right_rank = num::FromPrimitive::from_i32(pos.rank as i32 - top_right_offset).unwrap();
         let top_right = Pos{file:top_right_file, rank:top_right_rank};
-        let top_right = self.get_first_occupied_square(pos, &top_right).unwrap_or(top_right);
 
-        // @TODO - extract this to private method as it is mostly identical to rook logic
-        GameState::get_positions_between(&bottom_left, &top_right)
-            .into_iter()
-            .chain(GameState::get_positions_between(&top_left, &bottom_right))
-            .map(|new_pos| Move{old_position:*pos, new_position:new_pos, check:false, capture: false, promotion: None})
-            .filter_map(|mov| match self.get_square_state(&mov.new_position) {
-                Some((Color::White, _)) => None,
-                Some((Color::Black, _)) => Some(Move{capture:true,..mov}),
-                None => Some(mov)
-            })
-            .collect()
+        self.get_legal_moves_between_squares(&pos, &top_left)
+        .into_iter()
+        .chain(self.get_legal_moves_between_squares(&pos, &bottom_left))
+        .chain(self.get_legal_moves_between_squares(&pos, &top_right))
+        .chain(self.get_legal_moves_between_squares(&pos, &bottom_right))
+        .collect()
     }
 
     fn get_legal_rook_moves(&self, pos:&Pos) -> Vec<Move> {
         
         let top = Pos{file: pos.file, rank:Rank::_1};
-        let top = self.get_first_occupied_square(&pos, &top).unwrap_or(top);
-
         let bottom = Pos{file: pos.file, rank:Rank::_8};
-        let bottom = self.get_first_occupied_square(&pos, &bottom).unwrap_or(bottom);
-
         let left = Pos{file: File::A, rank:pos.rank};
-        let left = self.get_first_occupied_square(&pos, &left).unwrap_or(left);
-
         let right = Pos{file: File::H, rank:pos.rank};
-        let right = self.get_first_occupied_square(&pos, &right).unwrap_or(right);
 
-        GameState::get_positions_between(&top, &bottom)
-            .into_iter()
-            .chain(GameState::get_positions_between(&left, &right))
-            .map(|new_pos| Move{old_position:*pos, new_position:new_pos, check:false, capture: false, promotion: None})
-            .filter_map(|mov| match self.get_square_state(&mov.new_position) {
-                Some((Color::White, _)) => None,
-                Some((Color::Black, _)) => Some(Move{capture:true,..mov}),
-                None => Some(mov)
-            })
-            .collect()
+        self.get_legal_moves_between_squares(&pos, &top)
+        .into_iter()
+        .chain(self.get_legal_moves_between_squares(&pos, &bottom))
+        .chain(self.get_legal_moves_between_squares(&pos, &left))
+        .chain(self.get_legal_moves_between_squares(&pos, &right))
+        .collect()
     }
 
     fn get_legal_queen_moves(&self, pos:&Pos) -> Vec<Move> {
+
+        // queen can mvoe either as bishop or rook so just combine the two
         self.get_legal_bishop_moves(&pos)
             .into_iter()
             .chain(self.get_legal_rook_moves(&pos))
@@ -316,6 +356,12 @@ impl GameState {
        self.get_legal_moves_from_offset_list(&pos, &mut possible_moves.into_iter())
     }
 
+    /// get_legal_moves_from_offset_list takes a starting position and a list of i32 pairs representing
+    /// file and rank offset respectively.
+    /// 
+    /// It then returns a list of valid moves directly going from start position and applying the offset.
+    /// 
+    /// It is intended for knight/king movement where a list of direct offsets rather than a range is given 
     fn get_legal_moves_from_offset_list(&self, start:&Pos, move_offsets:&mut dyn Iterator<Item=(i32,i32)>) -> Vec<Move> {
 
         let is_landing_on_own_piece = |m:&Move| match self.get_square_state(&m.new_position) {
@@ -348,6 +394,27 @@ impl GameState {
         .collect()
     }
 
+    /// get_legal_moves_between_squares takes a starting position and an ending position and returns
+    /// a list of legal moves between those 2 squares.
+    /// 
+    // Remarks: Start and end must either be on the same diagnol, rank, or file
+    fn get_legal_moves_between_squares(&self, start:&Pos, end:&Pos) -> Vec<Move> {
+
+        assert!(start.is_on_same_rank_file_or_diagnanol(end), "Start and end must be on the same file, rank, or diagnal");
+
+        let end = self.get_first_occupied_square(&start, &end).unwrap_or(*end);
+
+        GameState::get_positions_between(&start, &end)
+            .into_iter()
+            .map(|new_pos| Move{old_position:*start, new_position:new_pos, check:false, capture: false, promotion: None})
+            .filter_map(|mov| match self.get_square_state(&mov.new_position) {
+                Some((Color::White, _)) => None,
+                Some((Color::Black, _)) => Some(Move{capture:true,..mov}),
+                None => Some(mov)
+            })
+            .collect()
+    }
+
     fn get_first_occupied_square(&self, start:&Pos, finish:&Pos) -> Option<Pos> {
 
         GameState::get_positions_between(start, finish)
@@ -369,7 +436,9 @@ impl GameState {
     ///                          Pos{file:File::_A, rank::Rank:4},
     ///                          Pos{file:File::_A, rank::Rank:5}
     /// Remarks: Start and finish must either be on the same rank, file or diaganol
-    fn get_positions_between(start:&Pos, finish:&Pos) -> Vec<Pos> {
+    fn get_positions_between(start:&Pos, end:&Pos) -> Vec<Pos> {
+
+        assert!(start.is_on_same_rank_file_or_diagnanol(end), "Start and end must be on the same file, rank, or diagnal");
 
         let get_positions = |files:&mut dyn DoubleEndedIterator<Item=u8>, ranks:&mut dyn DoubleEndedIterator<Item=u8>| 
             files.zip(ranks)
@@ -383,16 +452,16 @@ impl GameState {
             })
             .collect();
 
-        let files:&mut dyn DoubleEndedIterator<Item=u8> = &mut (start.file as u8..=finish.file as u8);
-        let files_rev:&mut dyn DoubleEndedIterator<Item=u8> = &mut (finish.file as u8..=start.file as u8).rev();
+        let files:&mut dyn DoubleEndedIterator<Item=u8> = &mut (start.file as u8..=end.file as u8);
+        let files_rev:&mut dyn DoubleEndedIterator<Item=u8> = &mut (end.file as u8..=start.file as u8).rev();
         let files_repeat:&mut dyn DoubleEndedIterator<Item=u8> = &mut repeat(start.file as u8);
 
-        let ranks:&mut dyn DoubleEndedIterator<Item=u8> = &mut (start.rank as u8..=finish.rank as u8);
-        let ranks_rev:&mut dyn DoubleEndedIterator<Item=u8> = &mut (finish.rank as u8..=start.rank as u8).rev();
+        let ranks:&mut dyn DoubleEndedIterator<Item=u8> = &mut (start.rank as u8..=end.rank as u8);
+        let ranks_rev:&mut dyn DoubleEndedIterator<Item=u8> = &mut (end.rank as u8..=start.rank as u8).rev();
         let ranks_repeat:&mut dyn DoubleEndedIterator<Item=u8> = &mut repeat(start.rank as u8);
 
         // @TODO - assert is straight line or diagnal
-        match (finish.file.cmp(&start.file), finish.rank.cmp(&start.rank)) {
+        match (end.file.cmp(&start.file), end.rank.cmp(&start.rank)) {
             (Ordering::Greater, Ordering::Greater) => get_positions(files, ranks),
             (Ordering::Greater, Ordering::Less) => get_positions(files, ranks_rev),
             (Ordering::Greater, Ordering::Equal) => get_positions(files, ranks_repeat),
