@@ -494,7 +494,7 @@ impl GameState {
 
 // @TODO - move to seperate file
 #[cfg(test)]
-mod tests {
+mod get_legal_move_tests {
     use super::*;
     use std::fmt::Debug;
 
