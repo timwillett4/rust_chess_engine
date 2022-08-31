@@ -63,10 +63,10 @@ impl Pos {
     }
 
     pub fn is_on_same_diagonal(&self, other:&Pos) -> bool {
-        let file_offset = num::abs(self.file as i32 - other.file as i32);
-        let rank_offset = num::abs(self.rank as i32 - other.rank as i32);
+        let file_offset = self.file as i32 - other.file as i32;
+        let rank_offset = self.rank as i32 - other.rank as i32;
     
-        file_offset == rank_offset
+        file_offset.abs() == rank_offset.abs()
     }
 
     pub fn is_on_same_rank_file_or_diagnanol(&self, other:&Pos) -> bool {
@@ -185,7 +185,7 @@ impl GameState {
         };
 
         let can_en_passant_capture = |cap_sq:&Pos| {
-            let move_dist = |m:&Move| num::abs((m.new_position.rank as i32) - (m.old_position.rank as i32));
+            let move_dist = |m:&Move| (m.new_position.rank as i32 - m.old_position.rank as i32).abs();
 
             let was_opponent_first_pawn_move_of_2 = |m:&Move| match self.get_square_state(&m.new_position) {
                 Some((color,piece)) if color != self.to_move && piece == Piece::Pawn && move_dist(m) == 2 => true,
