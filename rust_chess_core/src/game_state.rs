@@ -115,7 +115,7 @@ impl GameState {
             Piece::Bishop => self.get_legal_bishop_moves(pos),
             Piece::Rook => self.get_legal_rook_moves(pos),
             Piece::Queen => self.get_legal_queen_moves(pos),
-            _ => panic!("Unimplemented")
+            Piece::King => self.get_legal_king_moves(pos),
         }
     }
     
@@ -204,6 +204,7 @@ impl GameState {
 
     fn get_legal_knight_moves(&self, pos:&Pos) -> Vec<Move> {
         let moves = [(2,1),(2,-1),(1,2),(1,-2),(-1,2),(-1,-2),(-2,-1),(-2,1)];
+
         let ranks = moves.iter().map(|(r,_)| -> Option<Rank> { num::FromPrimitive::from_i32(pos.rank as i32 + *r) });
         let files = moves.iter().map(|(_,f)| -> Option<File> { num::FromPrimitive::from_i32(pos.file as i32 + *f) });
         
@@ -308,6 +309,43 @@ impl GameState {
             .into_iter()
             .chain(self.get_legal_rook_moves(&pos))
             .collect()
+    }
+
+    fn get_legal_king_moves(&self, pos:&Pos) -> Vec<Move> {
+       let possible_moves = [(-1,0),(-1,1),(-1,-1),(0,1),(0,-1),(1,1),(1,0),(1,-1)];
+       self.get_legal_moves_from_offset_list(&pos, &mut possible_moves.into_iter())
+    }
+
+    fn get_legal_moves_from_offset_list(&self, start:&Pos, move_offsets:&mut dyn Iterator<Item=(i32,i32)>) -> Vec<Move> {
+
+        let is_landing_on_own_piece = |m:&Move| match self.get_square_state(&m.new_position) {
+            Some((c, _)) if c == self.to_move => true,
+            _ => false
+        };
+
+        let is_capturing = |m:&Move| match self.get_square_state(&m.new_position) {
+            Some((c, _)) if c != self.to_move => true,
+            _ => false
+        };
+
+        move_offsets.filter_map(|(r,f)| { 
+            let file = num::FromPrimitive::from_i32(start.file as i32 + f);
+            let rank = num::FromPrimitive::from_i32(start.rank as i32 + r);
+            
+            // invalid enum will map to none causing moves that would be for invalid
+            // squares to get filtered
+            match (file,rank) {
+                (Some(file), Some(rank)) => Some(Pos{file,rank}),
+                _ => None
+            }
+        })
+        .map(|new_pos| Move{old_position:*start, new_position:new_pos, check:false, capture:false, promotion:None})
+        .filter(|m| is_landing_on_own_piece(m) == false)
+        .map(|m| match is_capturing(&m) {
+            true => Move{capture:true,..m},
+            false => m
+        })
+        .collect()
     }
 
     fn get_first_occupied_square(&self, start:&Pos, finish:&Pos) -> Option<Pos> {
@@ -1127,5 +1165,32 @@ mod tests {
                     Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_8}, capture:false, check:false, promotion:None }]),
         }
     }
-    // @TODO - king
+
+    mod king_tests {
+        use super::*;
+
+        legal_move_tests! {
+            king_should_be_able_to_one_square_in_any_direction:(GameState {
+                board :[
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,Some((Color::White, Piece::King)),None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                    [None,None,None,None,None,None,None,None],
+                ],
+                to_move :Color::White,
+                previous_moves:vec![],
+            }, vec![Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::C, rank:Rank::_4}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::C, rank:Rank::_5}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_5}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::E, rank:Rank::_5}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::E, rank:Rank::_4}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::E, rank:Rank::_3}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_3}, capture:false, check:false, promotion:None },
+                    Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::C, rank:Rank::_3}, capture:false, check:false, promotion:None }]),
+        }
+    }
 }
