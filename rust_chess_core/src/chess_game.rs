@@ -127,32 +127,22 @@ impl ChessGame {
 
     pub fn get_legal_moves(&self) -> Vec<Move> {
 
+        let set_check_moves = |m| {
+            let mut updated = self.apply_move(&m);
+            updated.to_move = self.to_move;
+
+            let can_capture_king = |m:&Move| self.get_square_state(&m.new_position) == Some((self.to_move.other(), Piece::King));
+
+            match updated.get_all_moves().into_iter().any(|m| can_capture_king(&m)) {
+                true => Move{check:true,..m},
+                false => m
+            }
+        };
+
         self.get_all_moves()
             .into_iter()
-            .map(|m| {
-                let mut updated = self.apply_move(&m);
-                updated.to_move = self.to_move;
-
-                let can_capture_king = |m:&Move| self.get_square_state(&m.new_position) == Some((self.to_move.other(), Piece::King));
-
-                match updated.get_all_moves().into_iter().any(|m| can_capture_king(&m)) {
-                    true => Move{check:true,..m},
-                    false => m
-                }
-            })
+            .map(set_check_moves)
             .collect()
-            /*
-            .filter(|m| {
-                self.apply_move(&m)
-                    // @TODO - this strategy isn't going to work as it
-                    // creates endless recursive method
-                    // maybe need to extract private method first
-                    .get_legal_moves_for_piece_on_square(&m.new_position) // this is incorrec we want to know if opponents, pieces
-                    .into_iter()
-                    .filter(|mv| mv.capture)
-                    .all(|mv| matches!(mv, Move{newself.get_square_state(&mv.new_position) != Some((self.to_move, Piece::King)))
-            })
-            .collect()*/
     }
 
     fn get_all_moves(&self) -> Vec<Move> {
