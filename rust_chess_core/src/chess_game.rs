@@ -13,6 +13,15 @@ pub enum Color {
     Black
 }
 
+impl Color {
+    pub fn other(&self) -> Color {
+        match self {
+            Color::White => Color::Black,
+            Color::Black => Color::White
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, Ord, PartialOrd)]
 pub enum Piece {
     Pawn,
@@ -79,10 +88,10 @@ impl Pos {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub struct Move {
-    old_position :Pos,
-    new_position :Pos,
-    capture :bool,
-    check :bool,
+    old_position:Pos,
+    new_position:Pos,
+    capture:bool,
+    check:bool,
     promotion:Option<Piece>,
 }
 
@@ -99,8 +108,54 @@ pub struct ChessGame {
 
 impl ChessGame {
 
+    pub fn new() -> ChessGame {
+        ChessGame {
+            board:[
+                [Some((Color::Black, Piece::Rook)),Some((Color::Black, Piece::Knight)),Some((Color::Black, Piece::Bishop)),Some((Color::Black, Piece::Queen)),Some((Color::Black, Piece::King)),Some((Color::Black, Piece::Bishop)),Some((Color::Black, Piece::Knight)),Some((Color::Black, Piece::Pawn))],
+                [Some((Color::Black, Piece::Pawn)),Some((Color::Black, Piece::Pawn)),Some((Color::Black, Piece::Pawn)),Some((Color::Black, Piece::Pawn)),Some((Color::Black, Piece::Pawn)),Some((Color::Black, Piece::Pawn)),Some((Color::Black, Piece::Pawn)),Some((Color::Black, Piece::Pawn))],
+                [None,None,None,None,None,None,None,None],
+                [None,None,None,None,None,None,None,None],
+                [None,None,None,None,None,None,None,None],
+                [None,None,None,None,None,None,None,None],
+                [Some((Color::White, Piece::Pawn)),Some((Color::White, Piece::Pawn)),Some((Color::White, Piece::Pawn)),Some((Color::White, Piece::Pawn)),Some((Color::White, Piece::Pawn)),Some((Color::White, Piece::Pawn)),Some((Color::White, Piece::Pawn)),Some((Color::White, Piece::Pawn))],
+                [Some((Color::White, Piece::Rook)),Some((Color::White, Piece::Knight)),Some((Color::White, Piece::Bishop)),Some((Color::White, Piece::Queen)),Some((Color::White, Piece::King)),Some((Color::White, Piece::Bishop)),Some((Color::White, Piece::Knight)),Some((Color::White, Piece::Pawn))],
+            ],
+            to_move:Color::White,
+            previous_moves:vec![],
+        }
+    }
+
     pub fn get_legal_moves(&self) -> Vec<Move> {
 
+        self.get_all_moves()
+            .into_iter()
+            .map(|m| {
+                let mut updated = self.apply_move(&m);
+                updated.to_move = self.to_move;
+
+                let can_capture_king = |m:&Move| self.get_square_state(&m.new_position) == Some((self.to_move.other(), Piece::King));
+
+                match updated.get_all_moves().into_iter().any(|m| can_capture_king(&m)) {
+                    true => Move{check:true,..m},
+                    false => m
+                }
+            })
+            .collect()
+            /*
+            .filter(|m| {
+                self.apply_move(&m)
+                    // @TODO - this strategy isn't going to work as it
+                    // creates endless recursive method
+                    // maybe need to extract private method first
+                    .get_legal_moves_for_piece_on_square(&m.new_position) // this is incorrec we want to know if opponents, pieces
+                    .into_iter()
+                    .filter(|mv| mv.capture)
+                    .all(|mv| matches!(mv, Move{newself.get_square_state(&mv.new_position) != Some((self.to_move, Piece::King)))
+            })
+            .collect()*/
+    }
+
+    fn get_all_moves(&self) -> Vec<Move> {
         let create_ranks = || (0..8).map(|r| num::FromPrimitive::from_u32(r).expect(&String::from("Expected 0 to 7 to be able to be mapped to a rank")));
 
         let files = (0..8).map(|f| num::FromPrimitive::from_u32(f).expect(&String::from("Expected 0 to 7 to be able to be mapped to a file")));
@@ -108,33 +163,28 @@ impl ChessGame {
         let squares = files.flat_map(|file:File| create_ranks().map(move |rank:Rank| Pos{file, rank}));
 
         let squares_occupied_by_to_move = squares.filter_map(|pos| match self.get_square_state(&pos) {
-            Some((color,piece)) if color == self.to_move => Some((pos, (color,piece))),
+            Some((color,_piece)) if color == self.to_move => Some(pos),
             _ => None
         });
 
-        squares_occupied_by_to_move.flat_map(|tuple| {
-            let (pos, (color, piece)) = tuple;
-
-            self.get_legal_moves_for_piece_on_square(
-                &pos,
-                color,
-                piece
-            )
-        })
-        // see if it would be able to capture king on next move...
-        // if so mark as check
-        //.map(|mov| self.get_legal_moves_for_piece_on_square())
-        .collect()
+        squares_occupied_by_to_move.flat_map(|pos| self.get_legal_moves_for_piece_on_square(&pos)).collect()
     }
 
-    fn get_square_state(&self, pos:&Pos) -> Option<(Color,Piece)> {
+    pub fn get_square_state(&self, pos:&Pos) -> Option<(Color,Piece)> {
         self.board[pos.rank as usize][pos.file as usize]
     }
 
-    fn get_legal_moves_for_piece_on_square(&self, pos:&Pos, c:Color, p:Piece) -> Vec<Move> {
-        assert!(c == self.to_move, "Only pieces of color to move should be able to move");
+    fn set_square_state(&mut self, pos:&Pos, piece: Option<(Color, Piece)>) {
+        self.board[pos.rank as usize][pos.file as usize] = piece;
+    }
 
-        match p {
+    fn get_legal_moves_for_piece_on_square(&self, pos:&Pos) -> Vec<Move> {
+        let piece = self.get_square_state(pos);
+
+        let (color, piece) = piece.expect("Attempting to get legal moves for square with no piece on it");
+        assert!(color == self.to_move, "Can not move opponents piece");
+
+        match piece {
             Piece::Pawn => self.get_legal_pawn_moves(pos),
             Piece::Knight => self.get_legal_knight_moves(pos),
             Piece::Bishop => self.get_legal_bishop_moves(pos),
@@ -143,7 +193,7 @@ impl ChessGame {
             Piece::King => self.get_legal_king_moves(pos),
         }
     }
-    
+
     fn get_legal_pawn_moves(&self, pos:&Pos) -> Vec<Move> {
 
         assert!(pos.rank != Rank::_1 && pos.rank != Rank::_8, "Pawn can not be on first or last rank");
@@ -478,6 +528,30 @@ impl ChessGame {
             (Ordering::Less, Ordering::Equal) => get_positions(files_rev, ranks_repeat),
         }
     }
+
+    // updates
+    fn apply_move(&self, mv:&Move) -> ChessGame {
+        let piece_to_move = self.get_square_state(&mv.old_position);
+
+        assert!(matches!(piece_to_move, Some((color, _piece)) if color == self.to_move), "Attempting an invalid move");
+
+        let mut new_game = ChessGame {
+            to_move: self.to_move.other(),
+            ..
+            self.clone()
+        };
+
+        new_game.set_square_state(&mv.old_position, None);
+        new_game.set_square_state(&mv.new_position, piece_to_move);
+        
+        match mv.promotion {
+            Some(promotion_piece) => new_game.set_square_state(&mv.new_position, Some((self.to_move, promotion_piece))),
+            None => new_game.set_square_state(&mv.new_position, piece_to_move)
+        }
+        // @TODO - en_passant
+
+        new_game
+    }
 /*
     pub fn is_checkmate(game_state:GameState) -> bool {
         false
@@ -494,5 +568,3 @@ impl ChessGame {
         // 50 move rule
     }*/
 }
-
-// @TODO - move to seperate file
