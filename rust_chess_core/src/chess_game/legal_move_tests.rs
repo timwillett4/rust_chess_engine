@@ -2,18 +2,22 @@ use super::*;
 use std::fmt::Debug;
 
 // @TODO - move to generic helper libray
-fn are_equivelent<T>(mut actual:Vec<T>, mut expected:Vec<T>) -> bool
-    where T:Debug + PartialEq + Ord
+fn are_equivelent<T>(mut actual: Vec<T>, mut expected: Vec<T>) -> bool
+where
+    T: Debug + PartialEq + Ord,
 {
     if actual.len() != expected.len() {
-        println!("Length of actual ({:?}) does not equal length of expected ({:?})", actual.len(), expected.len());
+        println!(
+            "Length of actual ({:?}) does not equal length of expected ({:?})",
+            actual.len(),
+            expected.len()
+        );
         false
     } else {
         actual.sort();
         expected.sort();
-        actual.into_iter().zip(expected.into_iter())
-        .all(|tuple| { 
-            let (actual, expected) = tuple; 
+        actual.into_iter().zip(expected.into_iter()).all(|tuple| {
+            let (actual, expected) = tuple;
 
             actual == expected
         })
@@ -192,7 +196,7 @@ mod pawn_tests {
             previous_moves:vec![],
         }, vec![Move{old_position:Pos{file:File::A, rank:Rank::_6}, new_position:Pos{file:File::A, rank:Rank::_5}, capture:false, check:false, promotion:None },
                 Move{old_position:Pos{file:File::A, rank:Rank::_6}, new_position:Pos{file:File::B, rank:Rank::_5}, capture:true, check:false, promotion:None }]),
-    
+
         white_pawn_should_not_be_able_to_capture_same_color:(ChessGame {
             board :[
                 [None,None,None,None,None,None,None,None],
@@ -242,7 +246,7 @@ mod pawn_tests {
                 Move{old_position:Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::A, rank:Rank::_8}, capture:false, check:false, promotion:Some(Piece::Bishop) },
                 Move{old_position:Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::A, rank:Rank::_8}, capture:false, check:false, promotion:Some(Piece::Rook) },
                 Move{old_position:Pos{file:File::A, rank:Rank::_7}, new_position:Pos{file:File::A, rank:Rank::_8}, capture:false, check:false, promotion:Some(Piece::Queen) }]),
-        
+
         black_pawn_should_be_able_to_promote_if_on_2nd_rank:(ChessGame {
             board :[
                 [None,None,None,None,None,None,None,None],
@@ -379,7 +383,7 @@ mod knight_tests {
                 Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::B, rank:Rank::_3}, capture:false, check:false, promotion:None },
                 Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::B, rank:Rank::_5}, capture:false, check:false, promotion:None },
                 Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::C, rank:Rank::_6}, capture:false, check:false, promotion:None }]),
-    
+
         knight_can_not_move_off_edge_of_board:(ChessGame {
             board :[
                 [None,None,None,None,None,None,None,None],
@@ -592,7 +596,7 @@ mod bishop_tests {
         }, vec![Move{old_position:Pos{file:File::A, rank:Rank::_1}, new_position:Pos{file:File::B, rank:Rank::_2}, capture:false, check:false, promotion:None },
                 Move{old_position:Pos{file:File::A, rank:Rank::_1}, new_position:Pos{file:File::C, rank:Rank::_3}, capture:true, check:false, promotion:None }]),
     }
-    // @TODO 
+    // @TODO
     // check
 }
 
