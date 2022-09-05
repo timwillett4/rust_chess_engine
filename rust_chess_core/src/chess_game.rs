@@ -760,7 +760,7 @@ impl ChessGame {
             }
             None => new_game.set_square_state(&mv.new_position, piece_to_move),
         }
-        // @TODO - en_passant
+        // @TODO - en_passant needs to remove opponent piece
 
         new_game
     }

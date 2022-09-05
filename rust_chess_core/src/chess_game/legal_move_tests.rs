@@ -40,10 +40,6 @@ macro_rules! legal_move_tests {
     }
 }
 
-mod is_check_tests {
-    use super::*;
-}
-
 mod basic_pawn_movement_tests {
     use super::*;
 
