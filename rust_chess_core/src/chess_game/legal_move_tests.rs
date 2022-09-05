@@ -24,6 +24,7 @@ where
     }
 }
 
+// Given a board state, to move and previous moves, assert against an expected set of legal moves
 macro_rules! legal_move_tests {
     ($($name:ident:$value:expr,)*) => {
         $(
@@ -39,7 +40,11 @@ macro_rules! legal_move_tests {
     }
 }
 
-mod pawn_tests {
+mod is_check_tests {
+    use super::*;
+}
+
+mod basic_pawn_movement_tests {
     use super::*;
 
     legal_move_tests! {
@@ -358,7 +363,7 @@ mod pawn_tests {
     }
 }
 
-mod knight_tests {
+mod basic_knight_movement_tests {
     use super::*;
 
     legal_move_tests! {
@@ -437,7 +442,7 @@ mod knight_tests {
     }
 }
 
-mod bishop_tests {
+mod basic_bishop_movement_tests {
     use super::*;
 
     legal_move_tests! {
@@ -600,7 +605,7 @@ mod bishop_tests {
     // check
 }
 
-mod rook_tests {
+mod basic_rook_movement_tests {
     use super::*;
 
     legal_move_tests! {
@@ -686,9 +691,39 @@ mod rook_tests {
                 Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_7}, capture:false, check:false, promotion:None },
                 Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_8}, capture:false, check:false, promotion:None }]),
     }
+
+    legal_move_tests! {
+        rook_should_be_able_to_capture_opponent_piece_on_1st_rank:(ChessGame {
+            board: [
+                [Some((Color::Black, Piece::Rook)),None,None,None,None,None,None,None],
+                [None,None,None,None,None,None,None,None],
+                [None,None,None,None,None,None,None,None],
+                [None,None,None,None,None,None,None,None],
+                [None,None,None,None,None,None,None,None],
+                [None,None,None,None,None,None,None,None],
+                [None,None,None,None,None,None,None,None],
+                [Some((Color::White, Piece::Rook)),None,None,None,None,None,None,None],
+            ],
+            to_move: Color::Black,
+            previous_moves: vec![],
+        }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_8}, new_position: Pos{file:File::B, rank:Rank::_8}, capture: false, check: false, promotion: None },
+                Move{old_position: Pos{file:File::A, rank:Rank::_8}, new_position: Pos{file:File::C, rank:Rank::_8}, capture: false, check: false, promotion: None },
+                Move{old_position: Pos{file:File::A, rank:Rank::_8}, new_position: Pos{file:File::D, rank:Rank::_8}, capture: false, check: false, promotion: None },
+                Move{old_position: Pos{file:File::A, rank:Rank::_8}, new_position: Pos{file:File::E, rank:Rank::_8}, capture: false, check: false, promotion: None },
+                Move{old_position: Pos{file:File::A, rank:Rank::_8}, new_position: Pos{file:File::F, rank:Rank::_8}, capture: false, check: false, promotion: None },
+                Move{old_position: Pos{file:File::A, rank:Rank::_8}, new_position: Pos{file:File::G, rank:Rank::_8}, capture: false, check: false, promotion: None },
+                Move{old_position: Pos{file:File::A, rank:Rank::_8}, new_position: Pos{file:File::H, rank:Rank::_8}, capture: false, check: false, promotion: None },
+                Move{old_position: Pos{file:File::A, rank:Rank::_8}, new_position: Pos{file:File::A, rank:Rank::_7}, capture: false, check: false, promotion: None },
+                Move{old_position: Pos{file:File::A, rank:Rank::_8}, new_position: Pos{file:File::A, rank:Rank::_6}, capture: false, check: false, promotion: None },
+                Move{old_position: Pos{file:File::A, rank:Rank::_8}, new_position: Pos{file:File::A, rank:Rank::_5}, capture: false, check: false, promotion: None },
+                Move{old_position: Pos{file:File::A, rank:Rank::_8}, new_position: Pos{file:File::A, rank:Rank::_4}, capture: false, check: false, promotion: None },
+                Move{old_position: Pos{file:File::A, rank:Rank::_8}, new_position: Pos{file:File::A, rank:Rank::_3}, capture: false, check: false, promotion: None },
+                Move{old_position: Pos{file:File::A, rank:Rank::_8}, new_position: Pos{file:File::A, rank:Rank::_2}, capture: false, check: false, promotion: None },
+                Move{old_position: Pos{file:File::A, rank:Rank::_8}, new_position: Pos{file:File::A, rank:Rank::_1}, capture: true, check: false, promotion: None }]),
+    }
 }
 
-mod queen_tests {
+mod basic_queen_movement_tests {
     use super::*;
 
     legal_move_tests! {
@@ -742,7 +777,7 @@ mod queen_tests {
     }
 }
 
-mod king_tests {
+mod basic_king_movement_tests {
     use super::*;
 
     legal_move_tests! {
@@ -769,3 +804,37 @@ mod king_tests {
                 Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::C, rank:Rank::_3}, capture:false, check:false, promotion:None }]),
     }
 }
+
+mod can_not_leave_king_in_check_tests {
+    use super::*;
+
+    legal_move_tests! {
+        rook_should_not_be_able_to_move_when_pinned:(ChessGame {
+            board: [
+                [Some((Color::Black, Piece::Rook)),None,None,None,None,None,None,None],
+                [None,None,None,None,None,None,None,None],
+                [None,None,None,None,None,None,None,None],
+                [None,None,None,None,None,None,None,None],
+                [Some((Color::White, Piece::Rook)),None,None,None,None,None,None,None],
+                [None,None,None,None,None,None,None,None],
+                [None,None,None,None,None,None,None,None],
+                [Some((Color::White, Piece::King)),None,None,None,None,None,None,None],
+            ],
+            to_move: Color::White,
+            previous_moves: vec![],
+        }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_4}, new_position: Pos{file:File::A, rank:Rank::_8}, capture: true, check: false, promotion: None },
+                Move{old_position: Pos{file:File::A, rank:Rank::_4}, new_position: Pos{file:File::A, rank:Rank::_7}, capture: false, check: false, promotion: None },
+                Move{old_position: Pos{file:File::A, rank:Rank::_4}, new_position: Pos{file:File::A, rank:Rank::_6}, capture: false, check: false, promotion: None },
+                Move{old_position: Pos{file:File::A, rank:Rank::_4}, new_position: Pos{file:File::A, rank:Rank::_5}, capture: false, check: false, promotion: None },
+                Move{old_position: Pos{file:File::A, rank:Rank::_4}, new_position: Pos{file:File::A, rank:Rank::_4}, capture: false, check: false, promotion: None },
+                Move{old_position: Pos{file:File::A, rank:Rank::_4}, new_position: Pos{file:File::A, rank:Rank::_3}, capture: false, check: false, promotion: None },
+                Move{old_position: Pos{file:File::A, rank:Rank::_4}, new_position: Pos{file:File::A, rank:Rank::_2}, capture: false, check: false, promotion: None },
+ 
+                Move{old_position: Pos{file:File::A, rank:Rank::_1}, new_position: Pos{file:File::B, rank:Rank::_1}, capture: false, check: false, promotion: None }]),
+    }
+}
+
+// castle tests
+// stalemate tests
+// checkmate tests
+// draws - 50 move, 3-fold repetition

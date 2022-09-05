@@ -162,38 +162,46 @@ impl ChessGame {
     }
 
     pub fn get_legal_moves(&self) -> Vec<Move> {
+        let can_capture_king = |m: &Move, king_color: Color| {
+            self.get_square_state(&m.new_position) == Some((king_color, Piece::King))
+        };
+
         let set_check_moves = |m| {
+            // simulating here if it were our move again coudl we capture
+            // thus apply the move but ensure to_move stays same
             let mut updated = self.apply_move(&m);
             updated.to_move = self.to_move;
-
-            let can_capture_king = |m: &Move| {
-                self.get_square_state(&m.new_position) == Some((self.to_move.other(), Piece::King))
-            };
 
             match updated
                 .get_all_moves()
                 .into_iter()
-                .any(|m| can_capture_king(&m))
+                .any(|m| can_capture_king(&m, self.to_move.other()))
             {
                 true => Move { check: true, ..m },
                 false => m,
             }
         };
 
-        // @TODO
-        /*
-        let is_check_move = |m:&Move, color:Color| {
+        let leaves_king_in_check = |m: &Move| {
+            // simulating here if it were our move again could we capture
+            // thus apply the move but ensure to_move stays same
             let mut updated = self.apply_move(&m);
-            updated.to_move = self.to_move;
+            updated.to_move = self.to_move.other();
 
-            let can_capture_king = |m:&Move| self.get_square_state(&m.new_position) == Some((color, Piece::King));
-
-            updated.get_all_moves().into_iter().any(|m| can_capture_king(&m));
-        };*/
+            updated
+                .get_all_moves()
+                .into_iter()
+                .any(|m| {
+                    let can_capture = can_capture_king(&m, self.to_move);
+                    can_capture
+                })
+        };
 
         self.get_all_moves()
             .into_iter()
-            // @TODO - filter moves that leave you in check
+            /*.filter(|m| { 
+                leaves_king_in_check(&m) == false
+            })*/
             .map(set_check_moves)
             .collect()
     }
@@ -533,14 +541,17 @@ impl ChessGame {
             file: pos.file,
             rank: Rank::_1,
         };
+
         let bottom = Pos {
             file: pos.file,
             rank: Rank::_8,
         };
+
         let left = Pos {
             file: File::A,
             rank: pos.rank,
         };
+
         let right = Pos {
             file: File::H,
             rank: pos.rank,
@@ -548,9 +559,9 @@ impl ChessGame {
 
         self.get_legal_moves_between_squares(&pos, &top)
             .into_iter()
-            .chain(self.get_legal_moves_between_squares(&pos, &bottom))
-            .chain(self.get_legal_moves_between_squares(&pos, &left))
-            .chain(self.get_legal_moves_between_squares(&pos, &right))
+            .chain(self.get_legal_moves_between_squares(&pos, &bottom).into_iter())
+            .chain(self.get_legal_moves_between_squares(&pos, &left).into_iter())
+            .chain(self.get_legal_moves_between_squares(&pos, &right).into_iter())
             .collect()
     }
 
@@ -646,12 +657,15 @@ impl ChessGame {
                 promotion: None,
             })
             .filter_map(|mov| match self.get_square_state(&mov.new_position) {
-                Some((Color::White, _)) => None,
-                Some((Color::Black, _)) => Some(Move {
+                Some((to_move, _)) if to_move == self.to_move => None,
+                Some((other, _)) if other == self.to_move.other() => Some(Move {
                     capture: true,
                     ..mov
                 }),
-                None => Some(mov),
+                none => {
+                    assert!(none.is_none());
+                    Some(mov)
+                }
             })
             .collect()
     }
@@ -725,7 +739,10 @@ impl ChessGame {
         }
     }
 
-    // updates
+    // updates the board by applying a particular move
+    // note this method allows applying illegal moves (i.e. moving into check)
+    // as it can be leveraged to check if a move would leave your king in check
+    // for example
     fn apply_move(&self, mv: &Move) -> ChessGame {
         let piece_to_move = self.get_square_state(&mv.old_position);
 
