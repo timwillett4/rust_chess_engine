@@ -803,6 +803,25 @@ mod basic_king_movement_tests {
                 Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::D, rank:Rank::_3}, capture:false, check:false, promotion:None },
                 Move{old_position:Pos{file:File::D, rank:Rank::_4}, new_position:Pos{file:File::C, rank:Rank::_3}, capture:false, check:false, promotion:None }]),
     }
+
+    legal_move_tests! {
+        king_should_have_3_moves_when_in_corner:(ChessGame {
+            board: [
+                [None,None,None,None,None,None,None,None],
+                [None,None,None,None,None,None,None,None],
+                [None,None,None,None,None,None,None,None],
+                [None,None,None,None,None,None,None,None],
+                [None,None,None,None,None,None,None,None],
+                [None,None,None,None,None,None,None,None],
+                [None,None,None,None,None,None,None,None],
+                [Some((Color::White, Piece::King)),None,None,None,None,None,None,None],
+            ],
+            to_move: Color::White,
+            previous_moves: vec![],
+        }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_1}, new_position: Pos{file:File::A, rank:Rank::_2}, capture: false, check: false, promotion: None },
+                Move{old_position: Pos{file:File::A, rank:Rank::_1}, new_position: Pos{file:File::B, rank:Rank::_2}, capture: false, check: false, promotion: None },
+                Move{old_position: Pos{file:File::A, rank:Rank::_1}, new_position: Pos{file:File::B, rank:Rank::_1}, capture: false, check: false, promotion: None }]),
+    }
 }
 
 mod can_not_leave_king_in_check_tests {
@@ -822,14 +841,18 @@ mod can_not_leave_king_in_check_tests {
             ],
             to_move: Color::White,
             previous_moves: vec![],
-        }, vec![Move{old_position: Pos{file:File::A, rank:Rank::_4}, new_position: Pos{file:File::A, rank:Rank::_8}, capture: true, check: false, promotion: None },
+        }, vec![
+                // rook moves
+                Move{old_position: Pos{file:File::A, rank:Rank::_4}, new_position: Pos{file:File::A, rank:Rank::_8}, capture: true, check: false, promotion: None },
                 Move{old_position: Pos{file:File::A, rank:Rank::_4}, new_position: Pos{file:File::A, rank:Rank::_7}, capture: false, check: false, promotion: None },
                 Move{old_position: Pos{file:File::A, rank:Rank::_4}, new_position: Pos{file:File::A, rank:Rank::_6}, capture: false, check: false, promotion: None },
                 Move{old_position: Pos{file:File::A, rank:Rank::_4}, new_position: Pos{file:File::A, rank:Rank::_5}, capture: false, check: false, promotion: None },
-                Move{old_position: Pos{file:File::A, rank:Rank::_4}, new_position: Pos{file:File::A, rank:Rank::_4}, capture: false, check: false, promotion: None },
                 Move{old_position: Pos{file:File::A, rank:Rank::_4}, new_position: Pos{file:File::A, rank:Rank::_3}, capture: false, check: false, promotion: None },
                 Move{old_position: Pos{file:File::A, rank:Rank::_4}, new_position: Pos{file:File::A, rank:Rank::_2}, capture: false, check: false, promotion: None },
  
+                // king moves
+                Move{old_position: Pos{file:File::A, rank:Rank::_1}, new_position: Pos{file:File::A, rank:Rank::_2}, capture: false, check: false, promotion: None },
+                Move{old_position: Pos{file:File::A, rank:Rank::_1}, new_position: Pos{file:File::B, rank:Rank::_2}, capture: false, check: false, promotion: None },
                 Move{old_position: Pos{file:File::A, rank:Rank::_1}, new_position: Pos{file:File::B, rank:Rank::_1}, capture: false, check: false, promotion: None }]),
     }
 }

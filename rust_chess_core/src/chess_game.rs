@@ -199,9 +199,7 @@ impl ChessGame {
 
         self.get_all_moves()
             .into_iter()
-            /*.filter(|m| { 
-                leaves_king_in_check(&m) == false
-            })*/
+            .filter(|m| !leaves_king_in_check(&m))
             .map(set_check_moves)
             .collect()
     }
@@ -261,10 +259,10 @@ impl ChessGame {
     }
 
     fn get_legal_pawn_moves(&self, pos: &Pos) -> Vec<Move> {
-        assert!(
+        /*assert!(
             pos.rank != Rank::_1 && pos.rank != Rank::_8,
             "Pawn can not be on first or last rank"
-        );
+        );*/
 
         match (self.to_move, pos.rank) {
             // first move for white
