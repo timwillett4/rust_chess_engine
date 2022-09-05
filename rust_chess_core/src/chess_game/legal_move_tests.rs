@@ -272,7 +272,7 @@ mod basic_pawn_movement_tests {
 
         white_pawn_should_be_able_to_promote_when_capturing_on_8th_rank: (ChessGame {
             board: [
-                [None,Some((Color::Black, Piece::Pawn)),None,None,None,None,None,None],
+                [None,Some((Color::Black, Piece::Bishop)),None,None,None,None,None,None],
                 [Some((Color::White, Piece::Pawn)),None,None,None,None,None,None,None],
                 [None,None,None,None,None,None,None,None],
                 [None,None,None,None,None,None,None,None],
@@ -301,7 +301,7 @@ mod basic_pawn_movement_tests {
                 [None,None,None,None,None,None,None,None],
                 [None,None,None,None,None,None,None,None],
                 [Some((Color::Black, Piece::Pawn)),None,None,None,None,None,None,None],
-                [None, Some((Color::White, Piece::Pawn)),None,None,None,None,None,None],
+                [None, Some((Color::White, Piece::Bishop)),None,None,None,None,None,None],
             ],
             to_move: Color::Black,
             previous_moves: vec![],

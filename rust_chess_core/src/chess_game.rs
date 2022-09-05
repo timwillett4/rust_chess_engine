@@ -191,10 +191,7 @@ impl ChessGame {
             updated
                 .get_all_moves()
                 .into_iter()
-                .any(|m| {
-                    let can_capture = can_capture_king(&m, self.to_move);
-                    can_capture
-                })
+                .any(|m| can_capture_king(&m, self.to_move))
         };
 
         self.get_all_moves()
@@ -259,10 +256,10 @@ impl ChessGame {
     }
 
     fn get_legal_pawn_moves(&self, pos: &Pos) -> Vec<Move> {
-        /*assert!(
+        assert!(
             pos.rank != Rank::_1 && pos.rank != Rank::_8,
             "Pawn can not be on first or last rank"
-        );*/
+        );
 
         match (self.to_move, pos.rank) {
             // first move for white
